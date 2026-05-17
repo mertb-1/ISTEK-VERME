@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,16 +75,27 @@ export default function SuppliersPage() {
     setSuppliers((prev) => prev.filter((s) => s.id !== id));
   };
 
+  const categoryColors: Record<string, string> = {
+    "Yedek Parça": "bg-blue-50 text-blue-700",
+    "Yağ/Kimyasal": "bg-amber-50 text-amber-700",
+    "Gıda/Zahire": "bg-emerald-50 text-emerald-700",
+    "Teknik Hizmet": "bg-purple-50 text-purple-700",
+    "Diğer": "bg-gray-100 text-gray-600",
+  };
+
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tedarikçi Rehberi</h1>
           <p className="text-gray-500 mt-1">
-            {suppliers.length} tedarikçi kayıtlı
+            <span className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+              {suppliers.length}
+            </span>
+            {" "}tedarikçi kayıtlı
           </p>
         </div>
-        <Button onClick={openAdd}>
+        <Button onClick={openAdd} className="gap-2">
           <Plus className="w-4 h-4" />
           Tedarikçi Ekle
         </Button>
@@ -92,52 +103,72 @@ export default function SuppliersPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400">Yükleniyor...</div>
+          <div className="p-12 text-center text-gray-400 text-sm">Yükleniyor...</div>
         ) : suppliers.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="text-4xl mb-3">👥</div>
-            <p className="text-gray-500 mb-4">Henüz tedarikçi eklenmedi.</p>
+          <div className="px-6 py-16 text-center">
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-6 h-6 text-gray-400" />
+            </div>
+            <p className="text-gray-700 font-medium mb-1">Henüz tedarikçi eklenmedi</p>
+            <p className="text-gray-400 text-sm mb-5">Tedarikçilerinizi ekleyerek teklif taleblerini gönderin.</p>
             <Button onClick={openAdd} variant="outline">İlk Tedarikçiyi Ekle</Button>
           </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Firma / Yetkili</TableHead>
-                <TableHead>E-posta</TableHead>
-                <TableHead>Telefon</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead className="text-right">İşlem</TableHead>
+              <TableRow className="bg-gray-50">
+                <TableHead className="font-medium text-gray-600">Firma / Yetkili</TableHead>
+                <TableHead className="font-medium text-gray-600">E-posta</TableHead>
+                <TableHead className="font-medium text-gray-600">Telefon</TableHead>
+                <TableHead className="font-medium text-gray-600">Kategori</TableHead>
+                <TableHead className="text-right font-medium text-gray-600">İşlem</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>
-                    <div className="font-medium text-gray-900">{s.company_name}</div>
-                    {s.contact_name && <div className="text-xs text-gray-400 mt-0.5">{s.contact_name}</div>}
-                  </TableCell>
-                  <TableCell className="text-gray-600">{s.email}</TableCell>
-                  <TableCell className="text-gray-600">{s.phone || "—"}</TableCell>
-                  <TableCell>
-                    {s.category && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                        {s.category}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {suppliers.map((s) => {
+                const initials = s.company_name
+                  .split(" ")
+                  .map((w: string) => w[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                return (
+                  <TableRow key={s.id} className="hover:bg-gray-50/50">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 flex-shrink-0">
+                          {initials}
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{s.company_name}</div>
+                          {s.contact_name && (
+                            <div className="text-xs text-gray-400 mt-0.5">{s.contact_name}</div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-600 text-sm">{s.email}</TableCell>
+                    <TableCell className="text-gray-600 text-sm">{s.phone || "—"}</TableCell>
+                    <TableCell>
+                      {s.category && (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryColors[s.category] ?? "bg-gray-100 text-gray-600"}`}>
+                          {s.category}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(s)} className="h-8 w-8 text-gray-500 hover:text-gray-700">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)} className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

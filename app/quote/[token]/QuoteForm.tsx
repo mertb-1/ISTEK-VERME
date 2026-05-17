@@ -108,23 +108,27 @@ export default function QuoteForm({
   const deadline = rfq.deadline ? new Date(rfq.deadline) : null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-slate-900">
         <div className="max-w-4xl mx-auto px-4 py-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-sm font-bold">⚓</div>
-            <span className="text-sm text-slate-500">TeklifHub</span>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <span className="text-gray-400 text-sm">TeklifHub</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">{rfq.title}</h1>
-          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm text-slate-500">
-            <span>Alıcı: <span className="font-medium text-slate-700">{buyerCompany}</span></span>
+          <h1 className="text-xl font-bold text-white">{rfq.title}</h1>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm text-gray-400">
+            <span>Alıcı: <span className="font-medium text-gray-200">{buyerCompany}</span></span>
             {deadline && (
-              <span>Son tarih: <span className="font-medium text-slate-700">{deadline.toLocaleDateString("tr-TR")}</span></span>
+              <span>Son tarih: <span className="font-medium text-gray-200">{deadline.toLocaleDateString("tr-TR")}</span></span>
             )}
           </div>
           {rfq.notes && (
-            <p className="mt-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">{rfq.notes}</p>
+            <p className="mt-3 text-sm text-gray-400 bg-slate-800 rounded-lg px-3 py-2 inline-block">{rfq.notes}</p>
           )}
         </div>
       </div>
@@ -132,34 +136,34 @@ export default function QuoteForm({
       <div className="max-w-4xl mx-auto px-4 py-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Ürün Fiyat Tablosu */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">Ürün Listesi</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Fiyat girebileceğiniz ürünleri doldurun. Temin edemediğiniz ürünleri boş bırakabilirsiniz.</p>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-900">Ürün Listesi</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Fiyat girebileceğiniz ürünleri doldurun. Temin edemediğiniz ürünleri boş bırakabilirsiniz.</p>
             </div>
 
             {/* Desktop tablo */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-100">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Ürün</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide w-24">Miktar</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide w-32">Birim Fiyat *</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide w-32">Sunulan Marka</th>
-                    <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide w-20">Stok</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide w-36">Not</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Ürün</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide w-24">Miktar</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide w-32">Birim Fiyat *</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide w-32">Sunulan Marka</th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide w-20">Stok</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide w-36">Not</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {items.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
+                    <tr key={item.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{item.product_name}</div>
-                        {item.brand && <div className="text-xs text-slate-400">İstenen: {item.brand}</div>}
-                        {item.description && <div className="text-xs text-slate-400 mt-0.5">{item.description}</div>}
+                        <div className="font-medium text-gray-900">{item.product_name}</div>
+                        {item.brand && <div className="text-xs text-gray-400">İstenen: {item.brand}</div>}
+                        {item.description && <div className="text-xs text-gray-400 mt-0.5">{item.description}</div>}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{item.quantity} {item.unit}</td>
+                      <td className="px-4 py-3 text-gray-600">{item.quantity} {item.unit}</td>
                       <td className="px-4 py-3">
                         <div className="relative">
                           <input
@@ -169,7 +173,7 @@ export default function QuoteForm({
                             value={quoteItems[idx].unit_price}
                             onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
                             placeholder="0.00"
-                            className="w-full pl-3 pr-2 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full pl-3 pr-2 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
                       </td>
@@ -179,7 +183,7 @@ export default function QuoteForm({
                           value={quoteItems[idx].offered_brand}
                           onChange={(e) => updateItem(idx, "offered_brand", e.target.value)}
                           placeholder="Marka"
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -196,7 +200,7 @@ export default function QuoteForm({
                           value={quoteItems[idx].notes}
                           onChange={(e) => updateItem(idx, "notes", e.target.value)}
                           placeholder="Ek not..."
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </td>
                     </tr>
@@ -210,12 +214,12 @@ export default function QuoteForm({
               {items.map((item, idx) => (
                 <div key={item.id} className="p-4 space-y-3">
                   <div>
-                    <div className="font-semibold text-slate-900">{item.product_name}</div>
-                    <div className="text-sm text-slate-500">{item.quantity} {item.unit}{item.brand ? ` · ${item.brand}` : ""}</div>
+                    <div className="font-semibold text-gray-900">{item.product_name}</div>
+                    <div className="text-sm text-gray-500">{item.quantity} {item.unit}{item.brand ? ` · ${item.brand}` : ""}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Birim Fiyat *</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Birim Fiyat *</label>
                       <input
                         type="number"
                         min="0"
@@ -223,22 +227,22 @@ export default function QuoteForm({
                         value={quoteItems[idx].unit_price}
                         onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Sunulan Marka</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Sunulan Marka</label>
                       <input
                         type="text"
                         value={quoteItems[idx].offered_brand}
                         onChange={(e) => updateItem(idx, "offered_brand", e.target.value)}
                         placeholder="Marka"
-                        className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={quoteItems[idx].in_stock}
@@ -254,7 +258,7 @@ export default function QuoteForm({
                       value={quoteItems[idx].notes}
                       onChange={(e) => updateItem(idx, "notes", e.target.value)}
                       placeholder="Bu ürün için not..."
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
@@ -273,38 +277,38 @@ export default function QuoteForm({
           </div>
 
           {/* Teslimat ve Ödeme */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-            <h2 className="font-semibold text-slate-900">Teslimat & Ödeme Koşulları</h2>
+          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+            <h2 className="font-semibold text-gray-900">Teslimat & Ödeme Koşulları</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Teslimat Süresi</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Teslimat Süresi</label>
                 <input
                   type="text"
                   value={deliveryTime}
                   onChange={(e) => setDeliveryTime(e.target.value)}
                   placeholder="Örn: 3-5 iş günü"
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Ödeme Koşulları</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Ödeme Koşulları</label>
                 <input
                   type="text"
                   value={paymentTerms}
                   onChange={(e) => setPaymentTerms(e.target.value)}
                   placeholder="Örn: Peşin, 30 gün vadeli"
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Genel Notlar</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Genel Notlar</label>
               <textarea
                 value={supplierNotes}
                 onChange={(e) => setSupplierNotes(e.target.value)}
                 placeholder="Eklemek istediğiniz notlar, özel koşullar..."
                 rows={3}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
           </div>
@@ -323,7 +327,7 @@ export default function QuoteForm({
             {saving ? "Gönderiliyor..." : "Teklifi Gönder"}
           </button>
 
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-gray-400">
             Bu form {supplier?.company_name} adına {buyerCompany} firmasına gönderilecektir.
           </p>
         </form>
