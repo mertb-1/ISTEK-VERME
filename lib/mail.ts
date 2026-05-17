@@ -20,6 +20,16 @@ type SendRfqMailParams = {
   magicLink: string;
 };
 
+// HTML injection'ı önlemek için tüm user-supplied değerleri escape et
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 export async function sendRfqMail(params: SendRfqMailParams) {
   const { to, supplierName, buyerCompany, rfqTitle, deadline, rfqNotes, items, magicLink } = params;
 
@@ -31,12 +41,15 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     .map(
       (item, i) => `
       <tr style="background:${i % 2 === 0 ? "#f8fafc" : "#ffffff"}">
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1e293b">${item.product_name}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b">${item.brand || "—"}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;text-align:right">${item.quantity} ${item.unit}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1e293b">${esc(item.product_name)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b">${esc(item.brand || "—")}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;text-align:right">${esc(String(item.quantity))} ${esc(item.unit)}</td>
       </tr>`
     )
     .join("");
+
+  // magicLink sadece bizim ürettiğimiz bir UUID path — yine de encode et
+  const safeLink = encodeURI(magicLink);
 
   const html = `
 <!DOCTYPE html>
@@ -47,7 +60,7 @@ export async function sendRfqMail(params: SendRfqMailParams) {
 
     <!-- Header -->
     <div style="background:#1e40af;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center">
-      <div style="font-size:28px;margin-bottom:8px">⚓</div>
+      <div style="font-size:28px;margin-bottom:8px">&#9875;</div>
       <div style="color:#bfdbfe;font-size:13px;font-weight:500;letter-spacing:0.05em">TEKLİFHUB</div>
     </div>
 
@@ -55,15 +68,15 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     <div style="background:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0">
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a">Yeni Teklif Talebi</h1>
       <p style="margin:0 0 24px;font-size:15px;color:#475569">
-        Sayın <strong>${supplierName}</strong>,<br>
-        <strong>${buyerCompany}</strong> firması aşağıdaki ürünler için teklif talep ediyor.
+        Sayın <strong>${esc(supplierName)}</strong>,<br>
+        <strong>${esc(buyerCompany)}</strong> firması aşağıdaki ürünler için teklif talep ediyor.
       </p>
 
       <!-- RFQ Info -->
       <div style="background:#f8fafc;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #e2e8f0">
-        <div style="font-size:16px;font-weight:600;color:#0f172a;margin-bottom:4px">${rfqTitle}</div>
-        ${deadlineText ? `<div style="font-size:13px;color:#ef4444;font-weight:500">Son tarih: ${deadlineText}</div>` : ""}
-        ${rfqNotes ? `<div style="font-size:13px;color:#64748b;margin-top:8px">${rfqNotes}</div>` : ""}
+        <div style="font-size:16px;font-weight:600;color:#0f172a;margin-bottom:4px">${esc(rfqTitle)}</div>
+        ${deadlineText ? `<div style="font-size:13px;color:#ef4444;font-weight:500">Son tarih: ${esc(deadlineText)}</div>` : ""}
+        ${rfqNotes ? `<div style="font-size:13px;color:#64748b;margin-top:8px">${esc(rfqNotes)}</div>` : ""}
       </div>
 
       <!-- Items Table -->
@@ -84,12 +97,12 @@ export async function sendRfqMail(params: SendRfqMailParams) {
           Aşağıdaki butona tıklayarak fiyat teklifinizi girebilirsiniz.<br>
           <strong>Kayıt olmanıza gerek yoktur.</strong>
         </p>
-        <a href="${magicLink}"
+        <a href="${safeLink}"
           style="display:inline-block;background:#2563eb;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">
-          Teklif Ver →
+          Teklif Ver &rarr;
         </a>
         <p style="font-size:12px;color:#94a3b8;margin-top:12px">
-          veya bu linki kopyalayın: <span style="color:#2563eb">${magicLink}</span>
+          veya bu linki kopyalayın: <span style="color:#2563eb">${safeLink}</span>
         </p>
       </div>
     </div>
@@ -97,7 +110,7 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     <!-- Footer -->
     <div style="background:#f8fafc;border-radius:0 0 16px 16px;padding:16px 32px;border:1px solid #e2e8f0;border-top:none;text-align:center">
       <p style="margin:0;font-size:12px;color:#94a3b8">
-        TeklifHub · Denizcilik Tedarik Platformu<br>
+        TeklifHub &middot; Denizcilik Tedarik Platformu<br>
         Bu mail otomatik gönderilmiştir. Yanıtlamayınız.
       </p>
     </div>

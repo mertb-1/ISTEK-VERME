@@ -8,12 +8,21 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Yetkisiz." }, { status: 401 });
 
-  const { rfq_id } = await req.json();
-  if (!rfq_id) return NextResponse.json({ error: "rfq_id gerekli." }, { status: 400 });
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+  }
+
+  const { rfq_id } = body;
+  if (typeof rfq_id !== "string" || !rfq_id) {
+    return NextResponse.json({ error: "rfq_id gerekli." }, { status: 400 });
+  }
 
   const admin = createAdminClient();
 
-  // RFQ, ürünler ve alıcı bilgisini getir
+  // RFQ sahibinin bu kullanıcı olduğunu doğrula
   const { data: rfq } = await admin
     .from("rfqs")
     .select("id, title, notes, deadline, buyer_id, buyers(company_name)")
@@ -29,7 +38,7 @@ export async function POST(req: NextRequest) {
     .eq("rfq_id", rfq_id)
     .order("order_no");
 
-  // Gönderilecek tedarikçileri getir
+  // Sadece henüz gönderilmemiş (status=sent ama sent_at null) recipients — veya yeniden gönderim
   const { data: recipients } = await admin
     .from("rfq_recipients")
     .select("id, magic_token, suppliers(company_name, contact_name, email)")
@@ -41,7 +50,9 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const buyerCompany = (Array.isArray(rfq.buyers) ? rfq.buyers[0] : rfq.buyers as { company_name?: string })?.company_name ?? "";
+  const buyerCompany =
+    (Array.isArray(rfq.buyers) ? rfq.buyers[0] : (rfq.buyers as { company_name?: string }))
+      ?.company_name ?? "";
 
   const results = await Promise.allSettled(
     recipients.map(async (r) => {
@@ -60,11 +71,15 @@ export async function POST(req: NextRequest) {
         magicLink: `${appUrl}/quote/${r.magic_token}`,
       });
 
-      // Gönderim zamanını kaydet
-      await admin
+      // Gönderim zamanını kaydet — hata olsa bile devam et
+      const { error: updateErr } = await admin
         .from("rfq_recipients")
         .update({ sent_at: new Date().toISOString() })
         .eq("id", r.id);
+
+      if (updateErr) {
+        console.error("sent_at update error for recipient", r.id, updateErr.code);
+      }
     })
   );
 
