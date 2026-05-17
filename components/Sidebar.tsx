@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Anchor } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Anchor, Menu, X } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Ana Sayfa", icon: LayoutDashboard },
@@ -12,12 +13,15 @@ const navItems = [
   { href: "/suppliers", label: "Tedarikçiler", icon: Users },
 ];
 
-export default function Sidebar({
+function NavContent({
   buyer,
+  pathname,
+  onNavigate,
 }: {
   buyer: { full_name: string; company_name: string };
+  pathname: string;
+  onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -34,7 +38,7 @@ export default function Sidebar({
     .toUpperCase();
 
   return (
-    <aside className="w-64 bg-slate-900 flex flex-col flex-shrink-0">
+    <>
       {/* Logo */}
       <div className="px-5 py-5 border-b border-slate-800">
         <div className="flex items-center gap-3">
@@ -52,22 +56,23 @@ export default function Sidebar({
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || (item.href === "/rfq" && pathname.startsWith("/rfq") && pathname !== "/rfq/new");
+          const active =
+            pathname === item.href ||
+            (item.href === "/rfq" &&
+              pathname.startsWith("/rfq") &&
+              pathname !== "/rfq/new");
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 active
                   ? "bg-slate-800 text-white"
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
               }`}
             >
-              <Icon
-                className={`w-4 h-4 flex-shrink-0 ${
-                  active ? "text-blue-400" : ""
-                }`}
-              />
+              <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-blue-400" : ""}`} />
               <span className="flex-1">{item.label}</span>
               {active && (
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
@@ -96,6 +101,90 @@ export default function Sidebar({
           Çıkış Yap
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar({
+  buyer,
+}: {
+  buyer: { full_name: string; company_name: string };
+}) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Route değişince mobil menüyü kapat
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Scroll kilidi
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
+  return (
+    <>
+      {/* ── Masaüstü sidebar ── */}
+      <aside className="hidden lg:flex w-64 bg-slate-900 flex-col flex-shrink-0">
+        <NavContent buyer={buyer} pathname={pathname} />
+      </aside>
+
+      {/* ── Mobil topbar ── */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-900 border-b border-slate-800 flex items-center gap-3 px-4 h-14">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Menüyü aç"
+          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
+            <Anchor className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="text-white font-bold text-sm tracking-tight">TeklifHub</span>
+        </div>
+      </div>
+
+      {/* ── Mobil backdrop ── */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Mobil drawer ── */}
+      <aside
+        className={`lg:hidden fixed top-0 left-0 bottom-0 z-50 w-72 bg-slate-900 flex flex-col transition-transform duration-300 ease-out ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Navigasyon menüsü"
+      >
+        {/* Drawer kapat butonu */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          aria-label="Menüyü kapat"
+          className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <NavContent
+          buyer={buyer}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+        />
+      </aside>
+    </>
   );
 }
