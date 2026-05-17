@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const { data: items } = await admin
     .from("rfq_items")
-    .select("product_name, brand, quantity, unit")
+    .select("product_name, brand, quantity, unit, impa_code, detailed_description, photo_urls")
     .eq("rfq_id", rfq_id)
     .order("order_no");
 

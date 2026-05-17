@@ -5,6 +5,9 @@ type RfqItem = {
   brand?: string;
   quantity: number;
   unit: string;
+  impa_code?: string | null;
+  detailed_description?: string | null;
+  photo_urls?: string[] | null;
 };
 
 type SendRfqMailParams = {
@@ -37,12 +40,29 @@ export async function sendRfqMail(params: SendRfqMailParams) {
 
   const itemsHtml = items
     .map(
-      (item, i) => `
+      (item, i) => {
+        const photosHtml = item.photo_urls && item.photo_urls.length > 0
+          ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${item.photo_urls.map((url) =>
+              `<a href="${encodeURI(url)}" target="_blank" rel="noopener noreferrer">
+                <img src="${encodeURI(url)}" alt="Ürün fotoğrafı" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" />
+              </a>`
+            ).join("")}</div>`
+          : "";
+        const extraHtml = [
+          item.impa_code ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">IMPA: ${esc(item.impa_code)}</div>` : "",
+          item.detailed_description ? `<div style="font-size:12px;color:#64748b;margin-top:4px">${esc(item.detailed_description)}</div>` : "",
+          photosHtml,
+        ].join("");
+
+        return `
       <tr style="background:${i % 2 === 0 ? "#f8fafc" : "#ffffff"}">
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1e293b">${esc(item.product_name)}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b">${esc(item.brand || "—")}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;text-align:right">${esc(String(item.quantity))} ${esc(item.unit)}</td>
-      </tr>`
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1e293b">
+          ${esc(item.product_name)}${extraHtml}
+        </td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;vertical-align:top">${esc(item.brand || "—")}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;text-align:right;vertical-align:top">${esc(String(item.quantity))} ${esc(item.unit)}</td>
+      </tr>`;
+      }
     )
     .join("");
 

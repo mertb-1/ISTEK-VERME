@@ -10,6 +10,9 @@ type RfqItem = {
   quantity: number;
   unit: string;
   description: string;
+  impa_code?: string | null;
+  detailed_description?: string | null;
+  photo_urls?: string[] | null;
 };
 
 type QuoteItemInput = {
@@ -160,8 +163,21 @@ export default function QuoteForm({
                     <tr key={item.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{item.product_name}</div>
-                        {item.brand && <div className="text-xs text-gray-400">İstenen: {item.brand}</div>}
+                        {item.brand && <div className="text-xs text-gray-400">İstenen marka: {item.brand}</div>}
+                        {item.impa_code && <div className="text-xs text-gray-400">IMPA: {item.impa_code}</div>}
                         {item.description && <div className="text-xs text-gray-400 mt-0.5">{item.description}</div>}
+                        {item.detailed_description && (
+                          <div className="text-xs text-gray-500 mt-1 bg-gray-50 rounded px-2 py-1">{item.detailed_description}</div>
+                        )}
+                        {item.photo_urls && item.photo_urls.length > 0 && (
+                          <div className="flex gap-1.5 mt-2 flex-wrap">
+                            {item.photo_urls.map((url, pi) => (
+                              <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                                <img src={url} alt="Ürün fotoğrafı" className="w-12 h-12 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-600">{item.quantity} {item.unit}</td>
                       <td className="px-4 py-3">
@@ -216,6 +232,19 @@ export default function QuoteForm({
                   <div>
                     <div className="font-semibold text-gray-900">{item.product_name}</div>
                     <div className="text-sm text-gray-500">{item.quantity} {item.unit}{item.brand ? ` · ${item.brand}` : ""}</div>
+                    {item.impa_code && <div className="text-xs text-gray-400 mt-0.5">IMPA: {item.impa_code}</div>}
+                    {item.detailed_description && (
+                      <div className="text-xs text-gray-500 mt-1 bg-gray-100 rounded px-2 py-1">{item.detailed_description}</div>
+                    )}
+                    {item.photo_urls && item.photo_urls.length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {item.photo_urls.map((url, pi) => (
+                          <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                            <img src={url} alt="Ürün fotoğrafı" className="w-12 h-12 object-cover rounded-lg border border-gray-200" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>

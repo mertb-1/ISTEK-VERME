@@ -1,9 +1,12 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import PhotoUploader from "@/components/PhotoUploader";
+
+type UploadedPhoto = { url: string; name: string };
 
 type Item = {
   product_name: string;
@@ -11,7 +14,11 @@ type Item = {
   quantity: string;
   unit: string;
   description: string;
+  impa_code: string;
+  detailed_description: string;
+  photos: UploadedPhoto[];
   order_no: number;
+  expanded: boolean;
 };
 
 type Supplier = {
@@ -25,12 +32,15 @@ type Supplier = {
 const UNITS = ["adet", "kg", "lt", "m", "kutu", "paket"];
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function newItem(order_no: number): Item {
+  return {
+    product_name: "", brand: "", quantity: "", unit: "adet",
+    description: "", impa_code: "", detailed_description: "",
+    photos: [], order_no, expanded: false,
+  };
 }
 
 export default function NewRfqPage() {
@@ -38,9 +48,7 @@ export default function NewRfqPage() {
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<Item[]>([
-    { product_name: "", brand: "", quantity: "", unit: "adet", description: "", order_no: 0 },
-  ]);
+  const [items, setItems] = useState<Item[]>([newItem(0)]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -56,20 +64,18 @@ export default function NewRfqPage() {
   }, []);
 
   const addItem = () =>
-    setItems((prev) => [
-      ...prev,
-      { product_name: "", brand: "", quantity: "", unit: "adet", description: "", order_no: prev.length },
-    ]);
+    setItems((prev) => [...prev, newItem(prev.length)]);
 
   const removeItem = (idx: number) =>
     setItems((prev) =>
       prev.filter((_, i) => i !== idx).map((item, i) => ({ ...item, order_no: i }))
     );
 
-  const updateItem = (idx: number, field: keyof Item, value: string) =>
-    setItems((prev) =>
-      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
-    );
+  const updateItem = <K extends keyof Item>(idx: number, field: K, value: Item[K]) =>
+    setItems((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
+
+  const toggleExpand = (idx: number) =>
+    updateItem(idx, "expanded", !items[idx].expanded);
 
   const toggleSupplier = (id: string) =>
     setSelectedSuppliers((prev) => {
@@ -86,6 +92,14 @@ export default function NewRfqPage() {
     if (validItems.length === 0) { setError("En az bir ürün eklemelisiniz."); return; }
     if (selectedSuppliers.size === 0) { setError("En az bir tedarikçi seçmelisiniz."); return; }
 
+    // IMPA format doğrulama
+    for (const item of validItems) {
+      if (item.impa_code && !/^\d{6}$/.test(item.impa_code)) {
+        setError(`"${item.product_name}" için IMPA kodu 6 haneli sayı olmalıdır.`);
+        return;
+      }
+    }
+
     setSaving(true);
     const supabase = createClient();
 
@@ -101,7 +115,18 @@ export default function NewRfqPage() {
     if (rfqErr) { setError(rfqErr.message); setSaving(false); return; }
 
     const { error: itemsErr } = await supabase.from("rfq_items").insert(
-      validItems.map((item) => ({ ...item, quantity: parseFloat(item.quantity) || 1, rfq_id: rfq.id }))
+      validItems.map((item) => ({
+        rfq_id: rfq.id,
+        order_no: item.order_no,
+        product_name: item.product_name,
+        brand: item.brand,
+        quantity: parseFloat(item.quantity) || 1,
+        unit: item.unit,
+        description: item.description,
+        impa_code: item.impa_code || null,
+        detailed_description: item.detailed_description || null,
+        photo_urls: item.photos.length > 0 ? item.photos.map((p) => p.url) : null,
+      }))
     );
     if (itemsErr) { setError(itemsErr.message); setSaving(false); return; }
 
@@ -120,7 +145,7 @@ export default function NewRfqPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-6 max-w-4xl">
       <div className="mb-8">
         <div className="flex items-center gap-1.5 text-sm text-gray-400 mb-2">
           <a href="/rfq" className="hover:text-gray-600 transition-colors">Tekliflerim</a>
@@ -132,6 +157,7 @@ export default function NewRfqPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Bölüm 1 */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
@@ -173,6 +199,7 @@ export default function NewRfqPage() {
           </div>
         </div>
 
+        {/* Bölüm 2 — Ürün Listesi */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
@@ -181,72 +208,139 @@ export default function NewRfqPage() {
               {items.filter(i => i.product_name.trim()).length} ürün
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 w-8">#</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-gray-500">Ürün Adı</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 w-36">Marka</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 w-28">Miktar</th>
-                  <th className="text-left px-3 py-3 text-xs font-medium text-gray-500 w-28">Birim</th>
-                  <th className="w-12" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50/50">
-                    <td className="px-5 py-3 text-sm text-gray-400 font-medium">{idx + 1}</td>
-                    <td className="px-3 py-3">
-                      <input
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Ürün adı *"
-                        value={item.product_name}
-                        onChange={(e) => updateItem(idx, "product_name", e.target.value)}
-                      />
-                    </td>
-                    <td className="px-3 py-3">
+
+          <div className="divide-y divide-gray-100">
+            {items.map((item, idx) => (
+              <div key={idx}>
+                {/* Satır başlığı — her zaman görünür */}
+                <div className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/50">
+                  <span className="text-sm text-gray-400 font-medium w-5 flex-shrink-0">{idx + 1}</span>
+
+                  {/* Temel alanlar */}
+                  <input
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ürün adı *"
+                    value={item.product_name}
+                    onChange={(e) => updateItem(idx, "product_name", e.target.value)}
+                  />
+                  <input
+                    className="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hidden sm:block"
+                    placeholder="Marka"
+                    value={item.brand}
+                    onChange={(e) => updateItem(idx, "brand", e.target.value)}
+                  />
+                  <input
+                    className="w-20 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Miktar"
+                    type="number"
+                    min="0"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(idx, "quantity", e.target.value)}
+                  />
+                  <select
+                    className="w-24 px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={item.unit}
+                    onChange={(e) => updateItem(idx, "unit", e.target.value)}
+                  >
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+
+                  {/* Detay aç/kapa */}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(idx)}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50 flex-shrink-0"
+                    title="Detayları göster"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${item.expanded ? "rotate-180" : ""}`} />
+                    <span className="hidden sm:inline">Detay</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => removeItem(idx)}
+                    disabled={items.length === 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Genişletilmiş detaylar */}
+                {item.expanded && (
+                  <div className="px-5 pb-5 pt-2 bg-gray-50 border-t border-gray-100 space-y-4">
+                    {/* Mobilde marka buraya gelsin */}
+                    <div className="sm:hidden">
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Marka</label>
                       <input
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Marka"
                         value={item.brand}
                         onChange={(e) => updateItem(idx, "brand", e.target.value)}
                       />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Miktar"
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(idx, "quantity", e.target.value)}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          IMPA Kodu <span className="text-gray-400">(opsiyonel)</span>
+                        </label>
+                        <input
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Örn: 550101"
+                          value={item.impa_code}
+                          maxLength={6}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                            updateItem(idx, "impa_code", val);
+                          }}
+                        />
+                        {item.impa_code && item.impa_code.length < 6 && (
+                          <p className="text-xs text-amber-500 mt-1">{6 - item.impa_code.length} rakam daha</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                          Kısa Not <span className="text-gray-400">(opsiyonel)</span>
+                        </label>
+                        <input
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Kısa not..."
+                          value={item.description}
+                          onChange={(e) => updateItem(idx, "description", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                        Detaylı Açıklama <span className="text-gray-400">(opsiyonel)</span>
+                      </label>
+                      <textarea
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Teknik özellikler, boyutlar, standartlar..."
+                        rows={3}
+                        value={item.detailed_description}
+                        onChange={(e) => updateItem(idx, "detailed_description", e.target.value)}
                       />
-                    </td>
-                    <td className="px-3 py-3">
-                      <select
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={item.unit}
-                        onChange={(e) => updateItem(idx, "unit", e.target.value)}
-                      >
-                        {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(idx)}
-                        disabled={items.length === 1}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-2">
+                        Ürün Fotoğrafı <span className="text-gray-400">(opsiyonel)</span>
+                      </label>
+                      <PhotoUploader
+                        value={item.photos}
+                        onChange={(photos) => updateItem(idx, "photos", photos)}
+                        maxPhotos={5}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
+
           <div className="px-5 py-3 border-t border-gray-100">
             <button
               type="button"
@@ -259,6 +353,7 @@ export default function NewRfqPage() {
           </div>
         </div>
 
+        {/* Bölüm 3 — Tedarikçi Seçimi */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
@@ -278,7 +373,7 @@ export default function NewRfqPage() {
                 </a>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {suppliers.map((s) => {
                   const selected = selectedSuppliers.has(s.id);
                   return (
