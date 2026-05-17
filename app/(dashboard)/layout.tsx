@@ -21,9 +21,9 @@ export default async function DashboardLayout({
   if (!buyer || buyer.status !== "approved") redirect("/beklemede");
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar buyer={buyer} />
-      <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
+      <main className="pt-14 min-h-screen overflow-y-auto">
         {children}
       </main>
     </div>
