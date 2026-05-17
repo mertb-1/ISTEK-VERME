@@ -1,7 +1,5 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 type RfqItem = {
   product_name: string;
   brand?: string;
@@ -118,6 +116,8 @@ export async function sendRfqMail(params: SendRfqMailParams) {
   </div>
 </body>
 </html>`;
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   return resend.emails.send({
     from: "TeklifHub <onboarding@resend.dev>",
