@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus, Trash2, ChevronRight, ChevronDown, FileUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PhotoUploader from "@/components/PhotoUploader";
 
@@ -45,6 +45,7 @@ function newItem(order_no: number): Item {
 
 export default function NewRfqPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
@@ -53,6 +54,7 @@ export default function NewRfqPage() {
   const [selectedSuppliers, setSelectedSuppliers] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [uploadMeta, setUploadMeta] = useState<{ sourceType: string; sourceFileUrl: string | null } | null>(null);
 
   useEffect(() => {
     const client = createClient();
@@ -62,6 +64,37 @@ export default function NewRfqPage() {
       .order("company_name")
       .then(({ data }) => setSuppliers(data ?? []));
   }, []);
+
+  // Dosya yükleme akışından gelen ürünleri yükle
+  useEffect(() => {
+    if (searchParams.get("source") !== "upload") return;
+    try {
+      const raw = localStorage.getItem("rfq_upload_items");
+      if (!raw) return;
+      const payload = JSON.parse(raw) as {
+        items: { product_name: string; brand: string; quantity: string; unit: string; impa_code: string; description: string }[];
+        sourceFileUrl: string | null;
+        sourceType: string;
+      };
+      const loaded: Item[] = payload.items.map((p, i) => ({
+        product_name: p.product_name,
+        brand: p.brand,
+        quantity: p.quantity,
+        unit: p.unit || "adet",
+        description: p.description,
+        impa_code: p.impa_code,
+        detailed_description: "",
+        photos: [],
+        order_no: i,
+        expanded: false,
+      }));
+      if (loaded.length > 0) setItems(loaded);
+      setUploadMeta({ sourceType: payload.sourceType, sourceFileUrl: payload.sourceFileUrl });
+      localStorage.removeItem("rfq_upload_items");
+    } catch {
+      // localStorage okunamazsa sessizce geç
+    }
+  }, [searchParams]);
 
   const addItem = () =>
     setItems((prev) => [...prev, newItem(prev.length)]);
@@ -108,7 +141,15 @@ export default function NewRfqPage() {
 
     const { data: rfq, error: rfqErr } = await supabase
       .from("rfqs")
-      .insert({ title, notes, deadline: deadline || null, status: "open", buyer_id: user.id })
+      .insert({
+        title,
+        notes,
+        deadline: deadline || null,
+        status: "open",
+        buyer_id: user.id,
+        source_type: uploadMeta?.sourceType ?? "manual",
+        source_file_url: uploadMeta?.sourceFileUrl ?? null,
+      })
       .select("id")
       .single();
 
@@ -152,8 +193,25 @@ export default function NewRfqPage() {
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-gray-600">Yeni Teklif</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Yeni Teklif Oluştur</h1>
-        <p className="text-gray-500 mt-1">Ürün listesini doldurun, tedarikçileri seçin.</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Yeni Teklif Oluştur</h1>
+            <p className="text-gray-500 mt-1">Ürün listesini doldurun, tedarikçileri seçin.</p>
+          </div>
+          <a
+            href="/rfq/new/upload"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors flex-shrink-0"
+          >
+            <FileUp className="w-4 h-4" />
+            Dosyadan Yükle
+          </a>
+        </div>
+        {uploadMeta && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-4 py-2.5 rounded-xl">
+            <FileUp className="w-4 h-4 flex-shrink-0" />
+            {items.length} ürün {uploadMeta.sourceType === "pdf" ? "PDF" : "Excel"} dosyasından yüklendi. Düzenleyip gönderebilirsiniz.
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
