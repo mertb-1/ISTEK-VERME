@@ -37,7 +37,8 @@ async function extractPdfData(
   const pdfjsLib = await import("pdfjs-dist");
 
   // Worker: CDN'den yükle (bundle boyutunu şişirmez)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  // unpkg her versiyon için güvenilir — cdnjs bazen gecikmeli güncellenir
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const maxPages = Math.min(pdfDoc.numPages, 3);
@@ -265,8 +266,9 @@ export default function UploadPage() {
     let extracted: { type: "text"; text: string } | { type: "images"; images: string[] };
     try {
       extracted = await extractPdfData(file);
-    } catch {
-      setError("PDF açılamadı. Şifreli veya bozuk olabilir.");
+    } catch (err) {
+      console.error("[PDF] extractPdfData hata:", err);
+      setError(`PDF açılamadı: ${err instanceof Error ? err.message : String(err)}`);
       setStep(1);
       setPdfLoading(false);
       return;
