@@ -59,20 +59,22 @@ Sana bir gemi tedarik listesinin metin içeriği verilecek.
 - Emin olmadığın alanlar için null kullan
 - SADECE JSON döndür, başka hiçbir şey yazma
 
-ÇOKLU MİKTAR KOLONLARI:
-Bu PDF formlarında iki ayrı miktar kolonu olabilir:
-- ON BOARD / MEVCUT: Gemide şu an kaç tane var
-- REQUEST / İSTEK: Kaç tane isteniyor
+ÇOKLU MİKTAR KOLONLARI — ÇOK ÖNEMLİ:
+Bu PDF formlarında her satırda iki ayrı sayı yan yana gelir:
+  [ON BOARD/MEVCUT sayısı]  [REQUEST/İSTEK sayısı]
 
-Sen SADECE REQUEST / İSTEK kolonundaki miktarı al.
-ON BOARD / MEVCUT kolonunu tamamen görmezden gel.
+Örneğin metin içeriğinde "1 1" görürsün: birinci 1 = mevcut, ikinci 1 = istek.
+"2 3" görürsün: 2 = mevcut, 3 = istek.
+"0 5" görürsün: 0 = mevcut, 5 = istek.
 
-Örnek:
-ON BOARD: 2, REQUEST: 2 → quantity: 2 (sadece istek)
-ON BOARD: 0, REQUEST: 3 → quantity: 3 (sadece istek)
-ON BOARD: 1, REQUEST: 1 → quantity: 1 (sadece istek)
+KURAL: quantity alanına SADECE ikinci sayıyı (REQUEST/İSTEK) yaz.
+- "1 1" → quantity: 1
+- "2 3" → quantity: 3
+- "0 5" → quantity: 5
+- "11" gibi bitişik gelirse → tek haneli ise 1, iki haneli ise yanlış parse, null yaz
 
-İki sayıyı ASLA birleştirme veya toplama.`;
+İki sayıyı birleştirme ("1"+"1"="11" yapma), toplama, çarpma — HİÇBİR işlem yapma.
+Sadece ikinci sayıyı al.`;
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -116,6 +118,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await pdfParse(buffer, { max: 3 }); // max 3 pages
     extractedText = result.text ?? "";
+    console.log("[parse-pdf] extracted text (first 1000 chars):", extractedText.slice(0, 1000));
   } catch {
     return NextResponse.json(
       {
