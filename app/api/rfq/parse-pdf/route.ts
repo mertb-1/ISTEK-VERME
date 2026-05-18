@@ -57,7 +57,22 @@ Sana bir gemi tedarik listesinin metin içeriği verilecek.
 - Boş satırları ALMA
 - Sadece ürün olan satırları al
 - Emin olmadığın alanlar için null kullan
-- SADECE JSON döndür, başka hiçbir şey yazma`;
+- SADECE JSON döndür, başka hiçbir şey yazma
+
+ÇOKLU MİKTAR KOLONLARI:
+Bu PDF formlarında iki ayrı miktar kolonu olabilir:
+- ON BOARD / MEVCUT: Gemide şu an kaç tane var
+- REQUEST / İSTEK: Kaç tane isteniyor
+
+Sen SADECE REQUEST / İSTEK kolonundaki miktarı al.
+ON BOARD / MEVCUT kolonunu tamamen görmezden gel.
+
+Örnek:
+ON BOARD: 2, REQUEST: 2 → quantity: 2 (sadece istek)
+ON BOARD: 0, REQUEST: 3 → quantity: 3 (sadece istek)
+ON BOARD: 1, REQUEST: 1 → quantity: 1 (sadece istek)
+
+İki sayıyı ASLA birleştirme veya toplama.`;
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
