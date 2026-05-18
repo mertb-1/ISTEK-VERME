@@ -73,6 +73,8 @@ export default function NewRfqPage() {
       if (!raw) return;
       const payload = JSON.parse(raw) as {
         items: { product_name: string; brand: string; quantity: string; unit: string; impa_code: string; description: string }[];
+        meta?: { vessel?: string; company?: string; date?: string; contact?: string };
+        listType?: string;
         sourceFileUrl: string | null;
         sourceType: string;
       };
@@ -90,6 +92,19 @@ export default function NewRfqPage() {
       }));
       if (loaded.length > 0) setItems(loaded);
       setUploadMeta({ sourceType: payload.sourceType, sourceFileUrl: payload.sourceFileUrl });
+
+      // Pre-fill title and notes from extracted metadata
+      if (payload.meta) {
+        const { vessel, company, date, contact } = payload.meta;
+        const titleParts = [vessel, payload.listType].filter(Boolean);
+        if (titleParts.length > 0) setTitle(titleParts.join(" - "));
+        const noteParts = [
+          company ? `Firma: ${company}` : "",
+          date ? `Tarih: ${date}` : "",
+          contact ? `İlgili: ${contact}` : "",
+        ].filter(Boolean);
+        if (noteParts.length > 0) setNotes(noteParts.join(" | "));
+      }
       localStorage.removeItem("rfq_upload_items");
     } catch {
       // localStorage okunamazsa sessizce geç
