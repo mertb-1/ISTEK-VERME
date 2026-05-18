@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { LayoutDashboard, FileText, Plus, Users, LogOut, Anchor, Menu, X } from "lucide-react";
+import { APP_NAME } from "@/lib/config";
 
 const navItems = [
   { href: "/dashboard", label: "Ana Sayfa", icon: LayoutDashboard },
@@ -59,7 +60,7 @@ export default function Sidebar({
           <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
             <Anchor className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="text-white font-bold text-sm tracking-tight">GetYourQuote</span>
+          <span className="text-white font-bold text-sm tracking-tight">{APP_NAME}</span>
         </div>
       </div>
 
@@ -95,7 +96,7 @@ export default function Sidebar({
               <Anchor className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="text-white font-bold text-sm tracking-tight">GetYourQuote</div>
+              <div className="text-white font-bold text-sm tracking-tight">{APP_NAME}</div>
               <div className="text-slate-500 text-xs mt-0.5">Denizcilik Platformu</div>
             </div>
           </div>

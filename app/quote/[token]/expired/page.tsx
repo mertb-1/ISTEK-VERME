@@ -1,3 +1,5 @@
+import { APP_NAME } from "@/lib/config";
+
 export default function QuoteExpiredPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
@@ -13,7 +15,7 @@ export default function QuoteExpiredPage() {
             Bu teklif bağlantısının süresi geçmiştir. Alıcı firma ile iletişime geçerek yeni bir bağlantı talep edebilirsiniz.
           </p>
           <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400">
-            GetYourQuote — Denizcilik Tedarik Platformu
+            {APP_NAME} — Denizcilik Tedarik Platformu
           </div>
         </div>
       </div>

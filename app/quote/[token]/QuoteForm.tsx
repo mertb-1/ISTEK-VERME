@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { APP_NAME } from "@/lib/config";
 
 type RfqItem = {
   id: string;
@@ -121,7 +122,7 @@ export default function QuoteForm({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <span className="text-gray-400 text-sm">GetYourQuote</span>
+            <span className="text-gray-400 text-sm">{APP_NAME}</span>
           </div>
           <h1 className="text-xl font-bold text-white">{rfq.title}</h1>
           <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm text-gray-400">

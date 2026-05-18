@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Anchor, CheckCircle } from "lucide-react";
+import { APP_NAME } from "@/lib/config";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function LoginPage() {
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
             <Anchor className="w-5 h-5 text-white" />
           </div>
-          <span className="text-white font-bold text-lg tracking-tight">GetYourQuote</span>
+          <span className="text-white font-bold text-lg tracking-tight">{APP_NAME}</span>
         </div>
 
         <div>
@@ -87,7 +88,7 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <p className="text-slate-600 text-sm">GetYourQuote. Tüm hakları saklıdır.</p>
+        <p className="text-slate-600 text-sm">{APP_NAME}. Tüm hakları saklıdır.</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center py-12 px-6">
@@ -96,7 +97,7 @@ export default function LoginPage() {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Anchor className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">GetYourQuote</span>
+            <span className="font-bold text-gray-900">{APP_NAME}</span>
           </div>
 
           <div className="mb-8">
