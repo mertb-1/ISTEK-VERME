@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
-import { pdf } from "pdf-to-img";
+import * as pdfParseModule from "pdf-parse";
+type PdfParseResult = { text: string };
+type PdfParseFn = (buffer: Buffer, options?: { max?: number }) => Promise<PdfParseResult>;
+const pdfParse = ((pdfParseModule as { default?: PdfParseFn }).default ?? pdfParseModule) as PdfParseFn;
 
 export interface PdfProduct {
   row_number: number;
@@ -25,10 +28,9 @@ export interface PdfApiResponse {
   data: PdfParsedData;
 }
 
-const SYSTEM_PROMPT = `Sen bir denizcilik sektörü PDF parser'ısın.
-Sana bir gemi tedarik listesi PDF'i verilecek.
-Şunları çıkar ve SADECE JSON formatında döndür,
-başka hiçbir şey yazma, markdown kullanma:
+const SYSTEM_PROMPT = `Sen bir denizcilik sektörü tedarik listesi parser'ısın.
+Sana bir gemi tedarik listesinin metin içeriği verilecek.
+Şunları çıkar ve SADECE JSON formatında döndür, başka hiçbir şey yazma, markdown kullanma:
 
 {
   "vessel_name": "gemi adı veya null",
@@ -94,16 +96,11 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  // PDF → PNG images (max 3 pages)
-  const base64Images: string[] = [];
+  // Extract text from PDF
+  let extractedText: string;
   try {
-    const document = await pdf(buffer, { scale: 1.5 });
-    let pageCount = 0;
-    for await (const page of document) {
-      if (pageCount >= 3) break;
-      base64Images.push((page as Buffer).toString("base64"));
-      pageCount++;
-    }
+    const result = await pdfParse(buffer, { max: 3 }); // max 3 pages
+    extractedText = result.text ?? "";
   } catch {
     return NextResponse.json(
       {
@@ -114,10 +111,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (base64Images.length === 0) {
+  const cleanedText = extractedText.trim();
+
+  if (cleanedText.length < 50) {
     return NextResponse.json(
-      { error: "PDF'den sayfa alınamadı." },
-      { status: 400 }
+      {
+        error:
+          "Bu PDF taranmış (görsel) görünüyor ve metin içermiyor. Lütfen Word/Excel'den oluşturulmuş bir PDF veya Excel dosyası yükleyin.",
+        scanned: true,
+      },
+      { status: 422 }
     );
   }
 
@@ -135,19 +138,7 @@ export async function POST(req: NextRequest) {
         },
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Bu PDF sayfasındaki gemi tedarik listesini analiz et ve JSON formatında döndür.",
-            },
-            ...base64Images.map((b64) => ({
-              type: "image_url" as const,
-              image_url: {
-                url: `data:image/png;base64,${b64}`,
-                detail: "high" as const,
-              },
-            })),
-          ],
+          content: `Aşağıdaki PDF metin içeriğini analiz et ve JSON formatında döndür:\n\n${cleanedText}`,
         },
       ],
     });
