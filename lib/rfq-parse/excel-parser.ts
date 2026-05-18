@@ -3,11 +3,19 @@ import type { RfqMeta, ExcelApiResponse } from "./types";
 import { suggestColumns, normalizeForMatch } from "./keywords";
 
 const META_KEYWORDS: Record<keyof RfqMeta, string[]> = {
-  vessel: ["gemi adi", "vessel name", "ship name", "gemi", "vessel", "m/v"],
-  company: ["firma adi", "company", "customer name", "musteri", "firma", "musteri adi"],
+  vessel: ["gemi adi", "vessel name", "ship name", "vessel", "m/v"],
+  company: ["firma adi", "company name", "customer name", "musteri adi", "firma adi"],
   date: ["tarih", "date", "siparis tarihi", "order date"],
-  contact: ["ilgili kisi", "yetkili", "contact", "ilgili", "sorumlu"],
+  contact: ["ilgili kisi", "yetkili kisi", "contact person", "sorumlu kisi"],
 };
+
+// Sütun başlıkları veya genel terimler — meta değer olarak hiçbir zaman alınmaz
+const META_VALUE_BLACKLIST = [
+  "stok aciklamasi", "gemi istek", "miktar", "birim", "toplam", "no", "not",
+  "adet", "type", "description", "unit", "quantity", "amount", "total",
+  "price", "remarks", "aciklama", "urun adi", "marka", "impa", "kategori",
+  "sira", "sno", "s.no", "malzeme", "tanim", "istek", "on board", "request",
+];
 
 function expandMergedCells(ws: XLSX.WorkSheet): void {
   if (!ws["!merges"]) return;
@@ -72,21 +80,39 @@ export function parseExcelFile(buffer: Buffer): Omit<ExcelApiResponse, "sourceFi
 
       for (const [key, keywords] of Object.entries(META_KEYWORDS) as [keyof RfqMeta, string[]][]) {
         if (meta[key]) continue;
-        if (keywords.some((k) => cellN.includes(normalizeForMatch(k)))) {
-          // Look right (skip cells that also look like keywords)
-          const rightVal = row[c + 1]?.trim() || row[c + 2]?.trim() || "";
-          const belowVal = r + 1 < topRows.length ? topRows[r + 1][c]?.trim() || "" : "";
-          const val = rightVal || belowVal;
-          // Don't use the value if it looks like another label
-          if (
-            val &&
-            !Object.values(META_KEYWORDS)
-              .flat()
-              .some((k) => normalizeForMatch(val).includes(normalizeForMatch(k)))
-          ) {
-            meta[key] = val;
-          }
+        // Tam eşleşme veya "anahtar kelime :" / "anahtar kelime :" formatı
+        const isLabelCell = keywords.some((k) => {
+          const kn = normalizeForMatch(k);
+          // cellN tam olarak kn içersin VE cellN sadece o etiketten oluşsun (sütun başlığı olmasın)
+          return cellN === kn || cellN.startsWith(kn + " ") || cellN.startsWith(kn + ":");
+        });
+        if (!isLabelCell) continue;
+
+        // Sağdaki hücrelere bak (boşlukları atla, en fazla 3 hücre)
+        let val = "";
+        for (let offset = 1; offset <= 3 && !val; offset++) {
+          val = row[c + offset]?.trim() || "";
         }
+        // Hiçbir şey yoksa bir alt satırın aynı sütununa bak
+        if (!val && r + 1 < topRows.length) {
+          val = topRows[r + 1][c]?.trim() || "";
+        }
+
+        if (!val) continue;
+
+        const valN = normalizeForMatch(val);
+
+        // Kara listede varsa alma
+        if (META_VALUE_BLACKLIST.some((bl) => valN === bl || valN.startsWith(bl))) continue;
+
+        // Başka bir meta etiketine benziyorsa alma
+        if (
+          Object.values(META_KEYWORDS)
+            .flat()
+            .some((k) => valN === normalizeForMatch(k))
+        ) continue;
+
+        meta[key] = val;
       }
     }
   }
