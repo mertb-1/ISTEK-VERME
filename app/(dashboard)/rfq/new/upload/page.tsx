@@ -19,7 +19,6 @@ import {
 import type {
   ParsedItem,
   ParsedItemField,
-  RfqMeta,
   ExcelApiResponse,
   ColumnSuggestion,
 } from "@/lib/rfq-parse/types";
@@ -124,11 +123,6 @@ export default function UploadPage() {
 
   // Step 2: which header row is confirmed
   const [headerRowIdx, setHeaderRowIdx] = useState(0);
-  // Meta fields
-  const [metaVessel, setMetaVessel] = useState("");
-  const [metaCompany, setMetaCompany] = useState("");
-  const [metaDate, setMetaDate] = useState("");
-  const [metaContact, setMetaContact] = useState("");
 
   // Step 3: column field map
   const [fieldMap, setFieldMap] = useState<FieldMap>({});
@@ -160,10 +154,6 @@ export default function UploadPage() {
       const resp = json as ExcelApiResponse;
       setApiResp(resp);
       setHeaderRowIdx(resp.headerRowIdx);
-      setMetaVessel(resp.meta.vessel ?? "");
-      setMetaCompany(resp.meta.company ?? "");
-      setMetaDate(resp.meta.date ?? "");
-      setMetaContact(resp.meta.contact ?? "");
       setFieldMap(buildFieldMap(resp.columnSuggestions));
       setStep(2);
     } catch {
@@ -238,20 +228,13 @@ export default function UploadPage() {
     const valid = items.filter((i) => i.product_name.trim());
     if (valid.length === 0) { setError("En az bir geçerli ürün olmalı."); return; }
 
-    const meta: RfqMeta = {
-      vessel: metaVessel || undefined,
-      company: metaCompany || undefined,
-      date: metaDate || undefined,
-      contact: metaContact || undefined,
-    };
-
     const listType = extractListType(fileName);
 
     localStorage.setItem(
       "rfq_upload_items",
       JSON.stringify({
         items: valid,
-        meta,
+        meta: {},
         listType,
         sourceFileUrl: apiResp?.sourceFileUrl ?? null,
         sourceType: "excel",
@@ -369,13 +352,6 @@ export default function UploadPage() {
               </p>
             </div>
           )}
-
-          <MetaFields
-            vessel={metaVessel} setVessel={setMetaVessel}
-            company={metaCompany} setCompany={setMetaCompany}
-            date={metaDate} setDate={setMetaDate}
-            contact={metaContact} setContact={setMetaContact}
-          />
 
           {/* Header row selection */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -627,49 +603,6 @@ export default function UploadPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Shared Meta Fields ───────────────────────────────────────────────────────
-
-function MetaFields({
-  vessel, setVessel,
-  company, setCompany,
-  date, setDate,
-  contact, setContact,
-}: {
-  vessel: string; setVessel: (v: string) => void;
-  company: string; setCompany: (v: string) => void;
-  date: string; setDate: (v: string) => void;
-  contact: string; setContact: (v: string) => void;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">Tespit Edilen Bilgiler</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {(
-          [
-            ["Gemi Adı", vessel, setVessel],
-            ["Firma", company, setCompany],
-            ["Tarih", date, setDate],
-            ["İlgili Kişi", contact, setContact],
-          ] as [string, string, (v: string) => void][]
-        ).map(([label, val, setter]) => (
-          <div key={label}>
-            <label className="block text-xs text-gray-500 mb-1">{label}</label>
-            <input
-              value={val}
-              onChange={(e) => setter(e.target.value)}
-              placeholder={`${label} (otomatik veya girin)`}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-gray-400 mt-3">
-        Bu bilgiler teklif başlığını ve notlarını otomatik dolduracak.
-      </p>
     </div>
   );
 }
