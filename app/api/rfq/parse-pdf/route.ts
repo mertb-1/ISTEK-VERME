@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
-import * as pdfParseModule from "pdf-parse";
-type PdfParseResult = { text: string };
-type PdfParseFn = (buffer: Buffer, options?: { max?: number }) => Promise<PdfParseResult>;
-const pdfParse = ((pdfParseModule as { default?: PdfParseFn }).default ?? pdfParseModule) as PdfParseFn;
 
 export interface PdfProduct {
   row_number: number;
@@ -28,11 +24,17 @@ export interface PdfApiResponse {
   data: PdfParsedData;
 }
 
-const SYSTEM_PROMPT = `Sen bir denizcilik sektörü tedarik listesi parser'ısın.
-Sana bir gemi tedarik listesinin metin içeriği verilecek.
-Şunları çıkar ve SADECE JSON formatında döndür, başka hiçbir şey yazma, markdown kullanma:
+// ─── Request body: frontend gönderir ─────────────────────────────────────────
+// text tabanlı PDF  → { text: string }
+// taranmış PDF      → { images: string[] }  (base64 JPEG, max 3 sayfa)
+interface ParsePdfBody {
+  text?: string;
+  images?: string[];
+}
 
-{
+// ─── System prompt ────────────────────────────────────────────────────────────
+
+const JSON_SCHEMA = `{
   "vessel_name": "gemi adı veya null",
   "company_name": "firma adı veya null",
   "date": "tarih veya null",
@@ -48,34 +50,88 @@ Sana bir gemi tedarik listesinin metin içeriği verilecek.
       "notes": "not veya null"
     }
   ]
+}`;
+
+const SHARED_RULES = `
+KRİTİK KURALLAR:
+1. SADECE belgede gördüğün ürünleri yaz
+2. Hiçbir zaman tahmin etme veya uydurma
+3. Emin olmadığında products: [] döndür
+4. Belgede görmediğin hiçbir ürün ekleme
+
+DIŞARIDA BIRAK:
+- Fiyat bilgileri (birim fiyat, toplam tutar)
+- Toplam / iskonto / genel toplam satırları
+- Logo, adres, telefon, e-posta bilgileri
+- Boş satırlar ve başlık satırları
+
+MİKTAR KURALI — ÇOK ÖNEMLİ:
+Bu formlarda her satırda iki ayrı sayı olabilir:
+  [ON BOARD / MEVCUT]  [REQUEST / İSTEK]
+
+SADECE REQUEST / İSTEK kolonundaki miktarı al. ON BOARD / MEVCUT'u tamamen yoksay.
+
+Örnekler (ON BOARD → REQUEST → doğru quantity):
+  2 → 2 → quantity: 2    (sayıları birleştirme, "22" yapma)
+  0 → 3 → quantity: 3
+  1 → 1 → quantity: 1    ("11" yapma, sadece 1)
+  5 → 0 → quantity: 0
+
+Eğer satır sonunda "X Y" formatında iki sayı varsa: ikincisi REQUEST'tir.
+İki sayıyı asla birleştirme, toplama veya çarpma.
+
+ÇIKTI:
+SADECE JSON döndür. Markdown, açıklama, ek metin yazma.`;
+
+const TEXT_SYSTEM_PROMPT = `Sen bir denizcilik sektörü tedarik listesi parser'ısın.
+Sana bir gemi tedarik listesinin ham metin içeriği verilecek.
+Şunları çıkar ve SADECE şu JSON şemasında döndür, başka hiçbir şey yazma:
+
+${JSON_SCHEMA}
+${SHARED_RULES}`;
+
+const IMAGE_SYSTEM_PROMPT = `Sen bir denizcilik sektörü tedarik listesi parser'ısın.
+Sana bir gemi tedarik listesi PDF'inin sayfa görüntüleri verilecek.
+Görüntülerdeki tabloyu analiz et ve SADECE şu JSON şemasında döndür, başka hiçbir şey yazma:
+
+${JSON_SCHEMA}
+${SHARED_RULES}`;
+
+// ─── ON BOARD / REQUEST pre-processor ────────────────────────────────────────
+// Metin tabanlı PDF'lerde her satır sonda iki sayı içerebilir: [on_board] [request]
+// Bu fonksiyon bu sayıları tespit edip sadece REQUEST'i bırakır.
+function preprocessTextQuantities(text: string): string {
+  const hasOnBoard =
+    /on\s*board|mevcut/i.test(text);
+  const hasRequest =
+    /\brequest\b|i[sş]tek/i.test(text);
+
+  if (!hasOnBoard || !hasRequest) return text;
+
+  const lines = text.split("\n");
+  return lines
+    .map((line) => {
+      // Satır sonu: boşlukla ayrılmış tam olarak iki sayı → ikincisini al
+      const m = line.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s*$/);
+      if (m) {
+        // m[2] = ON BOARD, m[3] = REQUEST
+        return `${m[1]} ${m[3]}`;
+      }
+      return line;
+    })
+    .join("\n");
 }
 
-ÖNEMLİ KURALLAR:
-- Fiyat bilgilerini (birim fiyat, toplam tutar) ALMA
-- Toplam/iskonto/genel toplam satırlarını ürün listesine EKLEME
-- Logo, adres, telefon bilgilerini ALMA
-- Boş satırları ALMA
-- Sadece ürün olan satırları al
-- Emin olmadığın alanlar için null kullan
-- SADECE JSON döndür, başka hiçbir şey yazma
+// ─── JSON cleaner ─────────────────────────────────────────────────────────────
+function cleanJson(raw: string): string {
+  return raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
 
-ÇOKLU MİKTAR KOLONLARI — ÇOK ÖNEMLİ:
-Bu PDF formlarında her satırda iki ayrı sayı yan yana gelir:
-  [ON BOARD/MEVCUT sayısı]  [REQUEST/İSTEK sayısı]
-
-Örneğin metin içeriğinde "1 1" görürsün: birinci 1 = mevcut, ikinci 1 = istek.
-"2 3" görürsün: 2 = mevcut, 3 = istek.
-"0 5" görürsün: 0 = mevcut, 5 = istek.
-
-KURAL: quantity alanına SADECE ikinci sayıyı (REQUEST/İSTEK) yaz.
-- "1 1" → quantity: 1
-- "2 3" → quantity: 3
-- "0 5" → quantity: 5
-- "11" gibi bitişik gelirse → tek haneli ise 1, iki haneli ise yanlış parse, null yaz
-
-İki sayıyı birleştirme ("1"+"1"="11" yapma), toplama, çarpma — HİÇBİR işlem yapma.
-Sadece ikinci sayıyı al.`;
-
+// ─── Route ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const supabase = createClient();
   const {
@@ -85,129 +141,125 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Oturum gerekli." }, { status: 401 });
   }
 
-  let formData: FormData;
+  let body: ParsePdfBody;
   try {
-    formData = await req.formData();
+    body = await req.json();
   } catch {
-    return NextResponse.json({ error: "İstek okunamadı." }, { status: 400 });
+    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const file = formData.get("file") as File | null;
-  if (!file) {
-    return NextResponse.json({ error: "Dosya bulunamadı." }, { status: 400 });
-  }
+  const { text, images } = body;
 
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
+  if (!text && (!images || images.length === 0)) {
     return NextResponse.json(
-      { error: "Sadece PDF dosyaları kabul edilir." },
+      { error: "text veya images alanı gerekli." },
       { status: 400 }
-    );
-  }
-
-  if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json(
-      { error: "Dosya 10 MB'den büyük olamaz." },
-      { status: 400 }
-    );
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  // Extract text from PDF
-  let extractedText: string;
-  try {
-    const result = await pdfParse(buffer, { max: 3 }); // max 3 pages
-    extractedText = result.text ?? "";
-    console.log("[parse-pdf] extracted text (first 1000 chars):", extractedText.slice(0, 1000));
-  } catch {
-    return NextResponse.json(
-      {
-        error:
-          "PDF okunamadı. Şifreli veya bozuk olabilir. Lütfen açık bir PDF yükleyin.",
-      },
-      { status: 400 }
-    );
-  }
-
-  const cleanedText = extractedText.trim();
-
-  if (cleanedText.length < 50) {
-    return NextResponse.json(
-      {
-        error:
-          "Bu PDF taranmış (görsel) görünüyor ve metin içermiyor. Lütfen Word/Excel'den oluşturulmuş bir PDF veya Excel dosyası yükleyin.",
-        scanned: true,
-      },
-      { status: 422 }
     );
   }
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
   let content: string;
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 4000,
-      messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: `Aşağıdaki PDF metin içeriğini analiz et ve JSON formatında döndür:\n\n${cleanedText}`,
-        },
-      ],
-    });
-    content = response.choices[0]?.message?.content ?? "";
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("timeout") || msg.includes("ETIMEDOUT")) {
+
+  // ── AKIŞ 1: Metin tabanlı PDF ──────────────────────────────────────────────
+  if (text) {
+    const processedText = preprocessTextQuantities(text.trim());
+    console.log("[parse-pdf:text] ilk 800 char:", processedText.slice(0, 800));
+
+    if (processedText.length < 50) {
       return NextResponse.json(
         {
           error:
-            "İşlem zaman aşımına uğradı. PDF çok büyük olabilir, daha kısa bir liste deneyin.",
+            "PDF'den yeterli metin çıkarılamadı. Taranmış PDF ise görüntü akışına geçilmeli.",
+          scanned: true,
         },
-        { status: 504 }
+        { status: 422 }
       );
     }
-    return NextResponse.json(
-      { error: "Yapay zeka servisi geçici olarak kullanılamıyor." },
-      { status: 503 }
-    );
+
+    try {
+      const res = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 4000,
+        messages: [
+          { role: "system", content: TEXT_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Aşağıdaki gemi tedarik listesi metnini analiz et:\n\n${processedText}`,
+          },
+        ],
+      });
+      content = res.choices[0]?.message?.content ?? "";
+    } catch (err: unknown) {
+      return NextResponse.json(
+        { error: gptErrorMessage(err) },
+        { status: 503 }
+      );
+    }
+  }
+  // ── AKIŞ 2: Taranmış PDF (görüntüler) ─────────────────────────────────────
+  else {
+    const safeImages = (images as string[]).slice(0, 3);
+    console.log("[parse-pdf:images] sayfa sayısı:", safeImages.length);
+
+    try {
+      const res = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 4000,
+        messages: [
+          { role: "system", content: IMAGE_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Bu gemi tedarik listesi PDF sayfalarını analiz et ve JSON formatında döndür.",
+              },
+              ...safeImages.map((b64) => ({
+                type: "image_url" as const,
+                image_url: {
+                  url: `data:image/jpeg;base64,${b64}`,
+                  detail: "high" as const,
+                },
+              })),
+            ],
+          },
+        ],
+      });
+      content = res.choices[0]?.message?.content ?? "";
+    } catch (err: unknown) {
+      return NextResponse.json(
+        { error: gptErrorMessage(err) },
+        { status: 503 }
+      );
+    }
   }
 
-  // Clean markdown fences if present
-  const cleaned = content
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-
+  // ── JSON parse ─────────────────────────────────────────────────────────────
   let parsed: PdfParsedData;
   try {
-    parsed = JSON.parse(cleaned);
+    parsed = JSON.parse(cleanJson(content));
   } catch {
+    console.error("[parse-pdf] JSON parse hatası, ham yanıt:", content.slice(0, 300));
     return NextResponse.json(
-      {
-        error:
-          "Yapay zeka yanıtı işlenemedi. Tekrar deneyin veya farklı bir PDF yükleyin.",
-      },
+      { error: "Yapay zeka yanıtı işlenemedi. Tekrar deneyin." },
       { status: 500 }
     );
   }
 
   if (!Array.isArray(parsed.products) || parsed.products.length === 0) {
     return NextResponse.json(
-      {
-        error:
-          "PDF'de ürün listesi bulunamadı. Manuel olarak ürün ekleyin.",
-        empty: true,
-      },
+      { error: "Ürün listesi bulunamadı. Manuel olarak ürün ekleyin.", empty: true },
       { status: 422 }
     );
   }
 
   return NextResponse.json({ data: parsed } satisfies PdfApiResponse);
+}
+
+function gptErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : "";
+  if (msg.includes("timeout") || msg.includes("ETIMEDOUT")) {
+    return "İşlem zaman aşımına uğradı. Daha kısa bir liste deneyin.";
+  }
+  return "Yapay zeka servisi geçici olarak kullanılamıyor.";
 }

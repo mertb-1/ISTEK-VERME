@@ -28,6 +28,56 @@ import type {
 import { suggestColumns, applyFieldMap } from "@/lib/rfq-parse/keywords";
 import type { PdfApiResponse } from "@/app/api/rfq/parse-pdf/route";
 
+// ─── Client-side PDF işleme (pdfjs-dist) ─────────────────────────────────────
+// pdfjs-dist dinamik import: SSR'da yüklenmesin, sadece tarayıcıda çalışsın
+async function extractPdfData(
+  file: File
+): Promise<{ type: "text"; text: string } | { type: "images"; images: string[] }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfjsLib = await import("pdfjs-dist");
+
+  // Worker: CDN'den yükle (bundle boyutunu şişirmez)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+  const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const maxPages = Math.min(pdfDoc.numPages, 3);
+
+  // ── Metin çıkarmayı dene ──────────────────────────────────────────────────
+  let fullText = "";
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item) => ("str" in item ? (item as { str: string }).str : ""))
+      .join(" ");
+    fullText += pageText + "\n";
+  }
+
+  // 100 karakterden fazla metin varsa metin akışı
+  if (fullText.trim().length >= 100) {
+    return { type: "text", text: fullText };
+  }
+
+  // ── Taranmış PDF: canvas'a render et → JPEG base64 ───────────────────────
+  const images: string[] = [];
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const naturalViewport = page.getViewport({ scale: 1 });
+    const targetWidth = Math.min(naturalViewport.width * 1.5, 1500);
+    const scale = targetWidth / naturalViewport.width;
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    await page.render({ canvas, viewport }).promise;
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    images.push(dataUrl.split(",")[1]); // base64 kısmı
+  }
+
+  return { type: "images", images };
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FIELD_LABELS: Record<ParsedItemField | "price" | "ignore", string> = {
@@ -210,13 +260,28 @@ export default function UploadPage() {
     setPdfLoading(true);
     setFileName(file.name);
     setSourceType("pdf");
-    setStep(2); // show loading screen
+    setStep(2); // loading ekranı
 
-    const fd = new FormData();
-    fd.append("file", file);
+    let extracted: { type: "text"; text: string } | { type: "images"; images: string[] };
+    try {
+      extracted = await extractPdfData(file);
+    } catch {
+      setError("PDF açılamadı. Şifreli veya bozuk olabilir.");
+      setStep(1);
+      setPdfLoading(false);
+      return;
+    }
 
     try {
-      const res = await fetch("/api/rfq/parse-pdf", { method: "POST", body: fd });
+      const res = await fetch("/api/rfq/parse-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          extracted.type === "text"
+            ? { text: extracted.text }
+            : { images: extracted.images }
+        ),
+      });
       const json = await res.json();
 
       if (!res.ok) {
