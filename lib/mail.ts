@@ -32,41 +32,12 @@ function esc(str: string): string {
 }
 
 export async function sendRfqMail(params: SendRfqMailParams) {
-  const { to, supplierName, buyerCompany, rfqTitle, deadline, rfqNotes, items, magicLink } = params;
+  const { to, supplierName, buyerCompany, rfqTitle, deadline, rfqNotes, magicLink } = params;
 
   const deadlineText = deadline
     ? new Date(deadline).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
     : null;
 
-  const itemsHtml = items
-    .map(
-      (item, i) => {
-        const photosHtml = item.photo_urls && item.photo_urls.length > 0
-          ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${item.photo_urls.map((url) =>
-              `<a href="${encodeURI(url)}" target="_blank" rel="noopener noreferrer">
-                <img src="${encodeURI(url)}" alt="Ürün fotoğrafı" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0" />
-              </a>`
-            ).join("")}</div>`
-          : "";
-        const extraHtml = [
-          item.impa_code ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">IMPA: ${esc(item.impa_code)}</div>` : "",
-          item.detailed_description ? `<div style="font-size:12px;color:#64748b;margin-top:4px">${esc(item.detailed_description)}</div>` : "",
-          photosHtml,
-        ].join("");
-
-        return `
-      <tr style="background:${i % 2 === 0 ? "#f8fafc" : "#ffffff"}">
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1e293b">
-          ${esc(item.product_name)}${extraHtml}
-        </td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;vertical-align:top">${esc(item.brand || "—")}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#64748b;text-align:right;vertical-align:top">${esc(String(item.quantity))} ${esc(item.unit)}</td>
-      </tr>`;
-      }
-    )
-    .join("");
-
-  // magicLink sadece bizim ürettiğimiz bir UUID path — yine de encode et
   const safeLink = encodeURI(magicLink);
 
   const html = `
@@ -87,39 +58,27 @@ export async function sendRfqMail(params: SendRfqMailParams) {
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a">Yeni Teklif Talebi</h1>
       <p style="margin:0 0 24px;font-size:15px;color:#475569">
         Sayın <strong>${esc(supplierName)}</strong>,<br>
-        <strong>${esc(buyerCompany)}</strong> firması aşağıdaki ürünler için teklif talep ediyor.
+        <strong>${esc(buyerCompany)}</strong> firması sizden teklif talep ediyor.
       </p>
 
       <!-- RFQ Info -->
-      <div style="background:#f8fafc;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #e2e8f0">
+      <div style="background:#f8fafc;border-radius:12px;padding:16px 20px;margin-bottom:32px;border:1px solid #e2e8f0">
         <div style="font-size:16px;font-weight:600;color:#0f172a;margin-bottom:4px">${esc(rfqTitle)}</div>
-        ${deadlineText ? `<div style="font-size:13px;color:#ef4444;font-weight:500">Son tarih: ${esc(deadlineText)}</div>` : ""}
+        ${deadlineText ? `<div style="font-size:13px;color:#ef4444;font-weight:500;margin-top:4px">Son tarih: ${esc(deadlineText)}</div>` : ""}
         ${rfqNotes ? `<div style="font-size:13px;color:#64748b;margin-top:8px">${esc(rfqNotes)}</div>` : ""}
       </div>
 
-      <!-- Items Table -->
-      <table style="width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:28px">
-        <thead>
-          <tr style="background:#f1f5f9">
-            <th style="padding:10px 16px;text-align:left;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Ürün</th>
-            <th style="padding:10px 16px;text-align:left;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Marka</th>
-            <th style="padding:10px 16px;text-align:right;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Miktar</th>
-          </tr>
-        </thead>
-        <tbody>${itemsHtml}</tbody>
-      </table>
-
       <!-- CTA -->
       <div style="text-align:center">
-        <p style="font-size:14px;color:#64748b;margin-bottom:16px">
-          Aşağıdaki butona tıklayarak fiyat teklifinizi girebilirsiniz.<br>
+        <p style="font-size:14px;color:#64748b;margin-bottom:20px">
+          Aşağıdaki butona tıklayarak ürün listesini görüntüleyebilir ve fiyat teklifinizi girebilirsiniz.<br>
           <strong>Kayıt olmanıza gerek yoktur.</strong>
         </p>
         <a href="${safeLink}"
           style="display:inline-block;background:#2563eb;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">
           Teklif Ver &rarr;
         </a>
-        <p style="font-size:12px;color:#94a3b8;margin-top:12px">
+        <p style="font-size:12px;color:#94a3b8;margin-top:16px">
           veya bu linki kopyalayın: <span style="color:#2563eb">${safeLink}</span>
         </p>
       </div>
