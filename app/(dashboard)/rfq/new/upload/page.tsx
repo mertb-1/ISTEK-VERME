@@ -15,6 +15,8 @@ import {
   Check,
   Info,
   ChevronLeft,
+  FileText,
+  Sparkles,
 } from "lucide-react";
 import type {
   ParsedItem,
@@ -24,8 +26,9 @@ import type {
   ColumnSuggestion,
 } from "@/lib/rfq-parse/types";
 import { suggestColumns, applyFieldMap } from "@/lib/rfq-parse/keywords";
+import type { PdfApiResponse } from "@/app/api/rfq/parse-pdf/route";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const FIELD_LABELS: Record<ParsedItemField | "price" | "ignore", string> = {
   product_name: "Ürün Adı",
@@ -43,11 +46,13 @@ const ASSIGNABLE_FIELDS: (ParsedItemField | "price" | "ignore")[] = [
 ];
 
 const STEP_LABELS = ["Yükle", "Başlık & Satır", "Sütunlar", "Ürünler"];
+const PDF_STEP_LABELS = ["Yükle", "Analiz", "Bilgiler", "Ürünler"];
 
 type Step = 1 | 2 | 3 | 4;
+type SourceType = "excel" | "pdf";
 type FieldMap = Record<number, ParsedItemField | "price" | "ignore" | null>;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildFieldMap(suggestions: ColumnSuggestion[]): FieldMap {
   const map: FieldMap = {};
@@ -69,12 +74,13 @@ function extractListType(filename: string): string {
   return "";
 }
 
-// ─── Stepper ─────────────────────────────────────────────────────────────────
+// ─── Stepper ──────────────────────────────────────────────────────────────────
 
-function Stepper({ current }: { current: Step }) {
+function Stepper({ current, sourceType }: { current: Step; sourceType: SourceType }) {
+  const labels = sourceType === "pdf" ? PDF_STEP_LABELS : STEP_LABELS;
   return (
     <div className="flex items-center mb-8">
-      {STEP_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const stepNum = (i + 1) as Step;
         const done = stepNum < current;
         const active = stepNum === current;
@@ -110,39 +116,65 @@ function Stepper({ current }: { current: Step }) {
   );
 }
 
+// ─── PDF Loading Overlay ──────────────────────────────────────────────────────
+
+function PdfLoadingOverlay() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 space-y-6">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Sparkles className="w-6 h-6 text-blue-500" />
+        </div>
+      </div>
+      <div className="text-center">
+        <p className="text-base font-semibold text-gray-800 mb-1">PDF analiz ediliyor...</p>
+        <p className="text-sm text-gray-500">Yapay zeka tablonuzu okuyor</p>
+        <p className="text-xs text-gray-400 mt-2">Bu işlem 10-30 saniye sürebilir.</p>
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 max-w-sm text-center">
+        <p className="text-xs text-amber-700">⚠️ Sayfayı kapatmayın, işlem devam ediyor.</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function UploadPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sourceType, setSourceType] = useState<SourceType>("excel");
 
-  // API response
+  // API response (Excel)
   const [apiResp, setApiResp] = useState<ExcelApiResponse | null>(null);
   const [fileName, setFileName] = useState("");
 
-  // Step 2: which header row is confirmed
+  // Step 2: which header row is confirmed (Excel only)
   const [headerRowIdx, setHeaderRowIdx] = useState(0);
-  // Step 2: editable meta fields
+  // Meta fields (both)
   const [metaVessel, setMetaVessel] = useState("");
   const [metaCompany, setMetaCompany] = useState("");
   const [metaDate, setMetaDate] = useState("");
   const [metaContact, setMetaContact] = useState("");
 
-  // Step 3: column field map
+  // Step 3: column field map (Excel only)
   const [fieldMap, setFieldMap] = useState<FieldMap>({});
 
   // Step 4: editable items
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [skippedRows, setSkippedRows] = useState(0);
 
-  // ── Step 1: File drop ───────────────────────────────────────────────────────
+  // ── File handling ──────────────────────────────────────────────────────────
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleExcelFile = useCallback(async (file: File) => {
     setError("");
     setLoading(true);
     setFileName(file.name);
+    setSourceType("excel");
 
     const fd = new FormData();
     fd.append("file", file);
@@ -173,9 +205,67 @@ export default function UploadPage() {
     }
   }, []);
 
+  const handlePdfFile = useCallback(async (file: File) => {
+    setError("");
+    setPdfLoading(true);
+    setFileName(file.name);
+    setSourceType("pdf");
+    setStep(2); // show loading screen
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      const res = await fetch("/api/rfq/parse-pdf", { method: "POST", body: fd });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json.error ?? "PDF işlenemedi.");
+        setStep(1);
+        setPdfLoading(false);
+        return;
+      }
+
+      const resp = json as PdfApiResponse;
+      const { data } = resp;
+
+      setMetaVessel(data.vessel_name ?? "");
+      setMetaCompany(data.company_name ?? "");
+      setMetaDate(data.date ?? "");
+      setMetaContact(data.contact_person ?? "");
+
+      // Map PDF products → ParsedItem[]
+      const parsed: ParsedItem[] = data.products.map((p) => ({
+        product_name: p.product_name ?? "",
+        brand: p.brand ?? "",
+        quantity: p.quantity != null ? String(p.quantity) : "",
+        unit: p.unit ?? "",
+        impa_code: p.impa_code ?? "",
+        description: p.notes ?? "",
+      }));
+
+      setItems(parsed.length > 0 ? parsed : [emptyItem()]);
+      setSkippedRows(0);
+      setStep(3); // go to meta review step
+    } catch {
+      setError("Sunucuya bağlanılamadı.");
+      setStep(1);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, []);
+
   const onDrop = useCallback(
-    (accepted: File[]) => { if (accepted[0]) handleFile(accepted[0]); },
-    [handleFile]
+    (accepted: File[]) => {
+      const file = accepted[0];
+      if (!file) return;
+      if (file.name.toLowerCase().endsWith(".pdf")) {
+        handlePdfFile(file);
+      } else {
+        handleExcelFile(file);
+      }
+    },
+    [handleExcelFile, handlePdfFile]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -183,31 +273,31 @@ export default function UploadPage() {
     accept: {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
       "application/vnd.ms-excel": [".xls"],
+      "application/pdf": [".pdf"],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
     onDropRejected: (files) => {
       const code = files[0]?.errors[0]?.code;
       if (code === "file-too-large") setError("Dosya 10 MB'den büyük olamaz.");
-      else if (code === "file-invalid-type") setError("Sadece .xlsx ve .xls kabul edilir.");
+      else if (code === "file-invalid-type") setError("Sadece .xlsx, .xls ve .pdf kabul edilir.");
       else setError("Geçersiz dosya.");
     },
   });
 
-  // ── Step 2 → 3 transition ──────────────────────────────────────────────────
+  // ── Excel Step 2 → 3 ──────────────────────────────────────────────────────
 
-  const goToStep3 = () => {
+  const goToStep3Excel = () => {
     if (!apiResp) return;
-    // Recompute column suggestions from the confirmed header row
     const newHeaders = apiResp.allRawRows[headerRowIdx] ?? [];
     const { suggestions } = suggestColumns(newHeaders);
     setFieldMap(buildFieldMap(suggestions));
     setStep(3);
   };
 
-  // ── Step 3 → 4 transition ──────────────────────────────────────────────────
+  // ── Excel Step 3 → 4 ──────────────────────────────────────────────────────
 
-  const goToStep4 = () => {
+  const goToStep4Excel = () => {
     if (!apiResp) return;
     const { items: parsed, skippedRows: skipped } = applyFieldMap(
       apiResp.allRawRows,
@@ -218,6 +308,10 @@ export default function UploadPage() {
     setSkippedRows(skipped);
     setStep(4);
   };
+
+  // ── PDF Step 3 (meta review) → 4 ─────────────────────────────────────────
+
+  const goToStep4Pdf = () => setStep(4);
 
   // ── Step 4: editing ────────────────────────────────────────────────────────
 
@@ -251,7 +345,7 @@ export default function UploadPage() {
         meta,
         listType,
         sourceFileUrl: apiResp?.sourceFileUrl ?? null,
-        sourceType: "excel",
+        sourceType,
       })
     );
     router.push("/rfq/new?source=upload");
@@ -264,9 +358,9 @@ export default function UploadPage() {
     setError("");
     setFieldMap({});
     setFileName("");
+    setPdfLoading(false);
   };
 
-  // ── Current header row's headers ───────────────────────────────────────────
   const currentHeaders = apiResp?.allRawRows[headerRowIdx] ?? [];
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -280,15 +374,15 @@ export default function UploadPage() {
           <ChevronRight className="w-3.5 h-3.5" />
           <a href="/rfq/new" className="hover:text-gray-600 transition-colors">Yeni Teklif</a>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-gray-600">Excel&apos;den Yükle</span>
+          <span className="text-gray-600">Dosyadan Yükle</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Excel&apos;den Ürün Yükle</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Dosyadan Ürün Yükle</h1>
         <p className="text-gray-500 mt-1">
-          Kamarin, sipariş formu veya fiyat listesi Excel&apos;ini yükleyin.
+          Excel veya PDF sipariş formunuzu yükleyin, yapay zeka ürünleri otomatik çıkarsın.
         </p>
       </div>
 
-      <Stepper current={step} />
+      <Stepper current={step} sourceType={sourceType} />
 
       {/* ═══════════════════════ STEP 1: DROPZONE ═══════════════════════════ */}
       {step === 1 && (
@@ -306,12 +400,15 @@ export default function UploadPage() {
               {isDragActive ? (
                 <Upload className="w-12 h-12 text-blue-500" />
               ) : (
-                <FileSpreadsheet className="w-12 h-12 text-green-500" />
+                <div className="flex gap-3">
+                  <FileSpreadsheet className="w-10 h-10 text-green-500" />
+                  <FileText className="w-10 h-10 text-red-400" />
+                </div>
               )}
             </div>
             {loading ? (
               <div>
-                <p className="text-base font-medium text-gray-700 mb-1">Dosyanız işleniyor...</p>
+                <p className="text-base font-medium text-gray-700 mb-1">Excel işleniyor...</p>
                 <div className="mt-3 flex justify-center">
                   <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -323,24 +420,40 @@ export default function UploadPage() {
                 <p className="text-base font-medium text-gray-700 mb-1">
                   Dosyayı buraya sürükleyin veya tıklayın
                 </p>
-                <p className="text-sm text-gray-400">.xlsx, .xls — max 10 MB</p>
+                <p className="text-sm text-gray-400">.xlsx, .xls, .pdf — max 10 MB</p>
               </>
             )}
           </div>
 
-          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-            <FileSpreadsheet className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-green-800">Örnek Excel şablonu</p>
-              <p className="text-xs text-green-600">Kamarin, sipariş formu, IMPA destekli</p>
+          {/* Format cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <FileSpreadsheet className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-green-800">Excel şablonu</p>
+                <p className="text-xs text-green-600">Kamarin, sipariş formu, IMPA destekli</p>
+              </div>
+              <a
+                href="/rfq-template.xlsx"
+                download
+                className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors whitespace-nowrap"
+              >
+                İndir
+              </a>
             </div>
-            <a
-              href="/rfq-template.xlsx"
-              download
-              className="px-4 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
-            >
-              İndir
-            </a>
+            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex flex-col gap-0.5">
+                <FileText className="w-5 h-5 text-red-500 flex-shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-red-800 flex items-center gap-1.5">
+                  PDF desteği
+                  <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-normal">YENİ</span>
+                </p>
+                <p className="text-xs text-red-600">Taranan veya metin tabanlı PDF&apos;ler</p>
+              </div>
+              <Sparkles className="w-4 h-4 text-red-400 flex-shrink-0" />
+            </div>
           </div>
 
           <p className="text-center text-sm text-gray-400">
@@ -354,10 +467,14 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* ═══════════════════════ STEP 2: META + HEADER ROW ══════════════════ */}
-      {step === 2 && apiResp && (
+      {/* ═══════════════════════ STEP 2 — PDF: LOADING ══════════════════════ */}
+      {step === 2 && sourceType === "pdf" && pdfLoading && (
+        <PdfLoadingOverlay />
+      )}
+
+      {/* ═══════════════════════ STEP 2 — EXCEL: META + HEADER ROW ══════════════════ */}
+      {step === 2 && sourceType === "excel" && apiResp && (
         <div className="space-y-6">
-          {/* Price notice */}
           {apiResp.priceColumnsDetected && (
             <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
               <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -368,33 +485,12 @@ export default function UploadPage() {
             </div>
           )}
 
-          {/* Meta fields */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Tespit Edilen Bilgiler</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {(
-                [
-                  ["Gemi Adı", metaVessel, setMetaVessel],
-                  ["Firma", metaCompany, setMetaCompany],
-                  ["Tarih", metaDate, setMetaDate],
-                  ["İlgili Kişi", metaContact, setMetaContact],
-                ] as [string, string, (v: string) => void][]
-              ).map(([label, val, setter]) => (
-                <div key={label}>
-                  <label className="block text-xs text-gray-500 mb-1">{label}</label>
-                  <input
-                    value={val}
-                    onChange={(e) => setter(e.target.value)}
-                    placeholder={`${label} (otomatik veya girin)`}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 mt-3">
-              Bu bilgiler teklif başlığını ve notlarını otomatik dolduracak.
-            </p>
-          </div>
+          <MetaFields
+            vessel={metaVessel} setVessel={setMetaVessel}
+            company={metaCompany} setCompany={setMetaCompany}
+            date={metaDate} setDate={setMetaDate}
+            contact={metaContact} setContact={setMetaContact}
+          />
 
           {/* Header row selection */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -461,14 +557,43 @@ export default function UploadPage() {
           <NavButtons
             onBack={reset}
             backLabel="Yeni Dosya"
-            onNext={goToStep3}
+            onNext={goToStep3Excel}
             nextLabel="Sütunları Ayarla →"
           />
         </div>
       )}
 
-      {/* ═══════════════════════ STEP 3: COLUMN MAPPING ═════════════════════ */}
-      {step === 3 && apiResp && (
+      {/* ═══════════════════════ STEP 3 — PDF: META REVIEW ═════════════════ */}
+      {step === 3 && sourceType === "pdf" && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-green-800">PDF başarıyla analiz edildi</p>
+              <p className="text-xs text-green-600">
+                {items.filter((i) => i.product_name.trim()).length} ürün tespit edildi
+              </p>
+            </div>
+          </div>
+
+          <MetaFields
+            vessel={metaVessel} setVessel={setMetaVessel}
+            company={metaCompany} setCompany={setMetaCompany}
+            date={metaDate} setDate={setMetaDate}
+            contact={metaContact} setContact={setMetaContact}
+          />
+
+          <NavButtons
+            onBack={reset}
+            backLabel="Yeni Dosya"
+            onNext={goToStep4Pdf}
+            nextLabel="Ürünleri İncele →"
+          />
+        </div>
+      )}
+
+      {/* ═══════════════════════ STEP 3 — EXCEL: COLUMN MAPPING ════════════ */}
+      {step === 3 && sourceType === "excel" && apiResp && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h2 className="text-sm font-semibold text-gray-700 mb-1">Sütun Eşleştirme</h2>
@@ -520,7 +645,7 @@ export default function UploadPage() {
 
           <NavButtons
             onBack={() => setStep(2)}
-            onNext={goToStep4}
+            onNext={goToStep4Excel}
             nextLabel="Ürünleri Önizle →"
           />
         </div>
@@ -529,7 +654,6 @@ export default function UploadPage() {
       {/* ═══════════════════════ STEP 4: PRODUCT PREVIEW ════════════════════ */}
       {step === 4 && (
         <div className="space-y-4">
-          {/* Summary */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl text-sm font-medium text-blue-800">
               <CheckCircle2 className="w-4 h-4 text-blue-600" />
@@ -540,6 +664,12 @@ export default function UploadPage() {
                 </span>
               )}
             </div>
+            {sourceType === "pdf" && (
+              <span className="flex items-center gap-1.5 text-xs text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl">
+                <Sparkles className="w-3 h-3" />
+                AI ile analiz edildi
+              </span>
+            )}
             <button
               onClick={reset}
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -549,7 +679,6 @@ export default function UploadPage() {
             </button>
           </div>
 
-          {/* Editable table */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -624,7 +753,7 @@ export default function UploadPage() {
 
           <div className="flex items-center gap-3 justify-between">
             <button
-              onClick={() => setStep(3)}
+              onClick={() => setStep(sourceType === "pdf" ? 3 : 3)}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -648,6 +777,49 @@ export default function UploadPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Shared Meta Fields ───────────────────────────────────────────────────────
+
+function MetaFields({
+  vessel, setVessel,
+  company, setCompany,
+  date, setDate,
+  contact, setContact,
+}: {
+  vessel: string; setVessel: (v: string) => void;
+  company: string; setCompany: (v: string) => void;
+  date: string; setDate: (v: string) => void;
+  contact: string; setContact: (v: string) => void;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <h2 className="text-sm font-semibold text-gray-700 mb-4">Tespit Edilen Bilgiler</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {(
+          [
+            ["Gemi Adı", vessel, setVessel],
+            ["Firma", company, setCompany],
+            ["Tarih", date, setDate],
+            ["İlgili Kişi", contact, setContact],
+          ] as [string, string, (v: string) => void][]
+        ).map(([label, val, setter]) => (
+          <div key={label}>
+            <label className="block text-xs text-gray-500 mb-1">{label}</label>
+            <input
+              value={val}
+              onChange={(e) => setter(e.target.value)}
+              placeholder={`${label} (otomatik veya girin)`}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-gray-400 mt-3">
+        Bu bilgiler teklif başlığını ve notlarını otomatik dolduracak.
+      </p>
     </div>
   );
 }
