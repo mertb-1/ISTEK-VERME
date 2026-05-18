@@ -19,22 +19,46 @@ function parseExcel(buffer: Buffer): {
   const workbook = XLSX.read(buffer, { type: "buffer" });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+
+  // Ham satırları al (header: 1 → her satır dizi olarak gelir)
+  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
     defval: "",
     raw: false,
   });
 
-  if (rows.length === 0) {
+  if (rawRows.length === 0) {
     return { items: [], unmappedColumns: [], warnings: ["Dosyada veri bulunamadı."] };
   }
 
-  const headers = Object.keys(rows[0]);
-  const { fieldMap, unmappedColumns } = matchHeaders(headers);
+  // Gerçek header satırını bul: anlamlı (sayı olmayan, boş olmayan) hücre sayısı en fazla olan ilk 15 satır
+  const isMeaningfulCell = (v: unknown) => {
+    const s = String(v ?? "").trim();
+    return s.length > 0 && !/^\d+$/.test(s);
+  };
+
+  let headerRowIdx = 0;
+  let bestScore = 0;
+  for (let i = 0; i < Math.min(15, rawRows.length); i++) {
+    const score = (rawRows[i] as unknown[]).filter(isMeaningfulCell).length;
+    if (score > bestScore) { bestScore = score; headerRowIdx = i; }
+    // İlk iyi satırı bul ve dur (form başlık bloğunu atla)
+    if (score >= 3) break;
+  }
+
+  const headerCells = (rawRows[headerRowIdx] as unknown[]).map((v) => String(v ?? "").trim());
+  const { fieldMap, unmappedColumns: rawUnmapped } = matchHeaders(headerCells);
+
+  // __EMPTY* gibi boş etiketleri unmapped listesinden çıkar
+  const unmappedColumns = rawUnmapped.filter((c) => c && !c.startsWith("__EMPTY"));
 
   const items: ParsedItem[] = [];
-  for (const row of rows) {
-    const item = rowToItem(row, headers, fieldMap);
-    if (!item.product_name.trim()) continue; // boş satırı atla
+  for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
+    const cells = rawRows[i] as unknown[];
+    const row: Record<string, unknown> = {};
+    headerCells.forEach((h, idx) => { row[h] = cells[idx] ?? ""; });
+    const item = rowToItem(row, headerCells, fieldMap);
+    if (!item.product_name.trim()) continue;
     items.push(item);
   }
 
@@ -83,7 +107,8 @@ function tryHeaderTableParse(lines: string[]): {
   const headers = splitLine(lines[headerIdx]);
   if (headers.length < 2) return null;
 
-  const { fieldMap, unmappedColumns } = matchHeaders(headers);
+  const { fieldMap, unmappedColumns: rawUnmapped } = matchHeaders(headers);
+  const unmappedColumns = rawUnmapped.filter((c) => c && !c.startsWith("__EMPTY"));
 
   const items: ParsedItem[] = [];
   for (let i = headerIdx + 1; i < lines.length; i++) {
