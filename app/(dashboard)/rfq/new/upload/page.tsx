@@ -22,7 +22,7 @@ import type {
   ExcelApiResponse,
   ColumnSuggestion,
 } from "@/lib/rfq-parse/types";
-import { suggestColumns, applyFieldMap } from "@/lib/rfq-parse/keywords";
+import { suggestColumns, applyFieldMap, normalizeForMatch, HIDDEN_COLUMN_KEYWORDS } from "@/lib/rfq-parse/keywords";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -439,7 +439,13 @@ export default function UploadPage() {
             <div className="space-y-2">
               {currentHeaders.map((header, ci) => {
                 if (!header.trim()) return null;
-                const current = fieldMap[ci] ?? null;
+                const _raw = fieldMap[ci];
+                const current: ParsedItemField | "price" | "ignore" | null =
+                  _raw === undefined ? null : (_raw as ParsedItemField | "price" | "ignore" | null);
+                // price/ignore atanmış veya gizli sütunları gösterme
+                if (current === "price" || current === "ignore") return null;
+                const hn = normalizeForMatch(header);
+                if (HIDDEN_COLUMN_KEYWORDS.some((k) => hn === normalizeForMatch(k))) return null;
                 return (
                   <div
                     key={ci}
@@ -457,7 +463,7 @@ export default function UploadPage() {
                         setFieldMap((prev) => ({ ...prev, [ci]: val === "" ? null : val }));
                       }}
                       className={`text-sm border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[160px] ${
-                        current === "price" || current === "ignore"
+                        (current as string) === "price" || (current as string) === "ignore"
                           ? "border-gray-200 text-gray-400 bg-gray-50"
                           : current
                           ? "border-blue-200 text-blue-800 bg-blue-50"

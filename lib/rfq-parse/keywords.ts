@@ -2,11 +2,11 @@ import type { ParsedItemField, ColumnSuggestion } from "./types";
 
 export const FIELD_KEYWORDS: Record<ParsedItemField | "price", string[]> = {
   product_name: [
-    "stok aciklamasi", "urun adi", "urun", "malzeme", "product name",
+    "gemi istek", "urun adi", "urun", "malzeme", "product name",
     "description", "product", "item", "type & description", "type &",
-    "malzemenin cinsi", "aciklama", "tanim",
+    "malzemenin cinsi", "tanim",
   ],
-  brand: ["gemi istek", "marka", "brand", "make", "manufacturer", "uretici"],
+  brand: ["marka", "brand", "make", "manufacturer", "uretici"],
   quantity: ["miktar", "qty", "qtty", "q.ty", "quantity", "adet", "talep"],
   unit: ["birim", "unit", "uom", "olcu", "u/m", "olcu birimi"],
   impa_code: ["impa", "impa/issa", "impa code", "issa", "impa no", "issa code", "issa no"],
@@ -14,9 +14,15 @@ export const FIELD_KEYWORDS: Record<ParsedItemField | "price", string[]> = {
   price: [
     "birim f", "u.price", "unit price", "amount", "total", "tutar",
     "fiyat", "toplam tutar", "iskonto", "u.fiyat", "birim fiyat",
+    "stok aciklamasi", "stok", "aciklama",
     "on board", "onboard",
   ],
 };
+
+// Bu başlıklar sütun eşleştirme UI'ında hiç gösterilmez
+export const HIDDEN_COLUMN_KEYWORDS = [
+  "no", "s.no", "sno", "sira", "sira no",
+];
 
 const TURKISH_MAP: Record<string, string> = {
   "i̇": "i", "ğ": "g", "ü": "u", "ş": "s", "ö": "o", "ç": "c",
