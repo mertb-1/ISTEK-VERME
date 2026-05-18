@@ -71,16 +71,12 @@ export async function sendRfqMail(params: SendRfqMailParams) {
       <!-- CTA -->
       <div style="text-align:center">
         <p style="font-size:14px;color:#64748b;margin-bottom:20px">
-          Aşağıdaki butona tıklayarak ürün listesini görüntüleyebilir ve fiyat teklifinizi girebilirsiniz.<br>
-          <strong>Kayıt olmanıza gerek yoktur.</strong>
+          Aşağıdaki butona tıklayarak ürün listesini görüntüleyebilir ve fiyat teklifinizi girebilirsiniz.
         </p>
         <a href="${safeLink}"
           style="display:inline-block;background:#2563eb;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">
           Teklif Ver &rarr;
         </a>
-        <p style="font-size:12px;color:#94a3b8;margin-top:16px">
-          veya bu linki kopyalayın: <span style="color:#2563eb">${safeLink}</span>
-        </p>
       </div>
     </div>
 
