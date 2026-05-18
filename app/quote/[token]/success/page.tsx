@@ -13,7 +13,7 @@ export default function QuoteSuccessPage() {
             Teklifiniz başarıyla iletildi. Alıcı firma değerlendirme sonucunda sizinle iletişime geçecektir.
           </p>
           <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400">
-            TeklifHub — Denizcilik Tedarik Platformu
+            GetYourQuote — Denizcilik Tedarik Platformu
           </div>
         </div>
       </div>

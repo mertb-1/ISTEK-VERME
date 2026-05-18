@@ -50,7 +50,7 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     <!-- Header -->
     <div style="background:#1e40af;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center">
       <div style="font-size:28px;margin-bottom:8px">&#9875;</div>
-      <div style="color:#bfdbfe;font-size:13px;font-weight:500;letter-spacing:0.05em">TEKLİFHUB</div>
+      <div style="color:#bfdbfe;font-size:13px;font-weight:500;letter-spacing:0.05em">GETYOURQUOTE</div>
     </div>
 
     <!-- Body -->
@@ -83,7 +83,7 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     <!-- Footer -->
     <div style="background:#f8fafc;border-radius:0 0 16px 16px;padding:16px 32px;border:1px solid #e2e8f0;border-top:none;text-align:center">
       <p style="margin:0;font-size:12px;color:#94a3b8">
-        TeklifHub &middot; Denizcilik Tedarik Platformu<br>
+        GetYourQuote &middot; Denizcilik Tedarik Platformu<br>
         Bu mail otomatik gönderilmiştir. Yanıtlamayınız.
       </p>
     </div>
@@ -95,7 +95,7 @@ export async function sendRfqMail(params: SendRfqMailParams) {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   return resend.emails.send({
-    from: "TeklifHub <onboarding@resend.dev>",
+    from: "GetYourQuote <onboarding@resend.dev>",
     to,
     subject: `Teklif Talebi: ${rfqTitle} — ${buyerCompany}`,
     html,
