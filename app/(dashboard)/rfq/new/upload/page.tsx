@@ -41,7 +41,9 @@ const ASSIGNABLE_FIELDS: (ParsedItemField | "price" | "ignore")[] = [
   "product_name", "brand", "quantity", "unit", "impa_code", "description", "price", "ignore",
 ];
 
-const STEP_LABELS = ["Yükle", "Başlık & Satır", "Sütunlar", "Ürünler"];
+// Aktif adımlar: 1=Yükle, 3=Sütunlar, 4=Ürünler (2 atlandı)
+const STEP_LABELS = ["Yükle", "Sütunlar", "Ürünler"];
+const STEP_NUMS: Step[] = [1, 3, 4]; // gerçek step numaraları
 
 type Step = 1 | 2 | 3 | 4;
 type FieldMap = Record<number, ParsedItemField | "price" | "ignore" | null>;
@@ -74,7 +76,7 @@ function Stepper({ current }: { current: Step }) {
   return (
     <div className="flex items-center mb-8">
       {STEP_LABELS.map((label, i) => {
-        const stepNum = (i + 1) as Step;
+        const stepNum = STEP_NUMS[i];
         const done = stepNum < current;
         const active = stepNum === current;
         return (
@@ -92,7 +94,7 @@ function Stepper({ current }: { current: Step }) {
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
-                {done ? <Check className="w-4 h-4" /> : stepNum}
+                {done ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               <span
                 className={`text-xs mt-1 whitespace-nowrap ${
@@ -155,7 +157,7 @@ export default function UploadPage() {
       setApiResp(resp);
       setHeaderRowIdx(resp.headerRowIdx);
       setFieldMap(buildFieldMap(resp.columnSuggestions));
-      setStep(2);
+      setStep(3);
     } catch {
       setError("Sunucuya bağlanılamadı.");
     } finally {
@@ -476,7 +478,8 @@ export default function UploadPage() {
           </div>
 
           <NavButtons
-            onBack={() => setStep(2)}
+            onBack={reset}
+            backLabel="Yeni Dosya"
             onNext={goToStep4Excel}
             nextLabel="Ürünleri Önizle →"
           />
