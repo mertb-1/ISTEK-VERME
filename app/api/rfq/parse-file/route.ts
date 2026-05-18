@@ -41,18 +41,96 @@ function parseExcel(buffer: Buffer): {
   return { items, unmappedColumns, warnings: [] };
 }
 
+async function extractPdfText(buffer: Buffer): Promise<string | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod: any = await import("pdf-parse");
+    const pdfParse = mod.default ?? mod;
+    const data = await pdfParse(buffer);
+    return data.text ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// K01 / standart istek formu satır pattern:
+// "1 CANESTEN 2 TUBE 2 TUBE EXPIRY"
+// "3 ISORDIL 0 TABLET 2 TABLET"
+// → numarayla başlayan, büyük harf ürün adı içeren satırlar
+const NUMBERED_ROW = /^(\d{1,3})\s+([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğışöüé\s\-\/().&%,]+?)\s+(\d+(?:[.,]\d+)?)\s+([A-Za-zÇĞİÖŞÜçğışöü.]+)\s+(\d+(?:[.,]\d+)?)\s+([A-Za-zÇĞİÖŞÜçğışöü.]+)(.*)?$/;
+
+// Basit ürün satırı: "CANESTEN  2  TUBE" gibi — header'dan eşleşme yapılabiliyorsa
+function tryHeaderTableParse(lines: string[]): {
+  items: ParsedItem[];
+  unmappedColumns: string[];
+} | null {
+  const splitLine = (line: string) =>
+    line.split(/\s{2,}|\t/).map((c) => c.trim()).filter(Boolean);
+
+  // Header satırını bul: içinde "description" veya "item" veya "malzeme" geçen satır
+  const headerIdx = lines.findIndex((l) => {
+    const low = l.toLowerCase();
+    return (
+      low.includes("description") ||
+      low.includes("malzeme") ||
+      low.includes("type &") ||
+      low.includes("ürün") ||
+      low.includes("item")
+    );
+  });
+  if (headerIdx < 0) return null;
+
+  const headers = splitLine(lines[headerIdx]);
+  if (headers.length < 2) return null;
+
+  const { fieldMap, unmappedColumns } = matchHeaders(headers);
+
+  const items: ParsedItem[] = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const cols = splitLine(lines[i]);
+    if (cols.length < 2) continue;
+    const row: Record<string, unknown> = {};
+    headers.forEach((h, idx) => { row[h] = cols[idx] ?? ""; });
+    const item = rowToItem(row, headers, fieldMap);
+    if (!item.product_name.trim()) continue;
+    items.push(item);
+  }
+
+  if (items.length === 0) return null;
+  return { items, unmappedColumns };
+}
+
+// K01 formu gibi numaralı satırları yakala
+function tryNumberedRowParse(lines: string[]): ParsedItem[] {
+  const items: ParsedItem[] = [];
+  for (const line of lines) {
+    const m = NUMBERED_ROW.exec(line.trim());
+    if (!m) continue;
+    const [, , name, , unit1, requestQty, unit2, remarks] = m;
+    // REQUEST (istek) miktarı al — onBoard değil
+    const qty = requestQty.replace(",", ".");
+    const unit = unit2 || unit1;
+    const remark = (remarks ?? "").trim();
+    items.push({
+      product_name: name.trim(),
+      brand: "",
+      quantity: qty,
+      unit,
+      impa_code: "",
+      description: remark,
+    });
+  }
+  return items;
+}
+
 async function parsePdf(buffer: Buffer): Promise<{
   items: ParsedItem[];
   unmappedColumns: string[];
   warnings: string[];
 }> {
-  let pdfParse: (buf: Buffer) => Promise<{ text: string }>;
-  try {
-    // dynamic import — server-only
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod: any = await import("pdf-parse");
-    pdfParse = mod.default ?? mod;
-  } catch {
+  const text = await extractPdfText(buffer);
+
+  if (!text) {
     return {
       items: [],
       unmappedColumns: [],
@@ -60,60 +138,33 @@ async function parsePdf(buffer: Buffer): Promise<{
     };
   }
 
-  const data = await pdfParse(buffer);
-  const text = data.text;
-
-  if (!text || text.trim().length < 10) {
+  if (text.trim().length < 10) {
     return {
       items: [],
       unmappedColumns: [],
-      warnings: [
-        "Bu PDF taranmış görünüyor, metin çıkarılamadı. Manuel ekleme yapın veya Excel şablonunu kullanın.",
-      ],
+      warnings: ["Bu PDF taranmış görünüyor, metin çıkarılamadı. Manuel ekleme yapın veya Excel şablonunu kullanın."],
     };
   }
 
-  // Satırları al, boşlukları normalize et
-  const lines = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
 
-  if (lines.length < 2) {
-    return { items: [], unmappedColumns: [], warnings: ["PDF'te tablo verisi bulunamadı."] };
+  // Strateji 1: Header tablosu tespiti
+  const headerResult = tryHeaderTableParse(lines);
+  if (headerResult && headerResult.items.length > 0) {
+    return { items: headerResult.items, unmappedColumns: headerResult.unmappedColumns, warnings: [] };
   }
 
-  // İlk satırı header olarak kabul et, sütunları 2+ boşlukla ayır
-  const splitLine = (line: string) =>
-    line.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean);
-
-  const headers = splitLine(lines[0]);
-  if (headers.length < 2) {
-    return {
-      items: [],
-      unmappedColumns: [],
-      warnings: [
-        "PDF tablo yapısı tanınamadı. Lütfen Excel şablonunu kullanın.",
-      ],
-    };
+  // Strateji 2: K01 / numaralı satır pattern
+  const numberedItems = tryNumberedRowParse(lines);
+  if (numberedItems.length > 0) {
+    return { items: numberedItems, unmappedColumns: [], warnings: [] };
   }
 
-  const { fieldMap, unmappedColumns } = matchHeaders(headers);
-
-  const items: ParsedItem[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = splitLine(lines[i]);
-    if (cols.length === 0) continue;
-    const row: Record<string, unknown> = {};
-    headers.forEach((h, idx) => {
-      row[h] = cols[idx] ?? "";
-    });
-    const item = rowToItem(row, headers, fieldMap);
-    if (!item.product_name.trim()) continue;
-    items.push(item);
-  }
-
-  return { items, unmappedColumns, warnings: [] };
+  return {
+    items: [],
+    unmappedColumns: [],
+    warnings: ["PDF tablo yapısı tanınamadı. Lütfen Excel şablonunu kullanın ya da ürünleri manuel girin."],
+  };
 }
 
 export async function POST(req: NextRequest) {

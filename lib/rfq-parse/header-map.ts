@@ -16,12 +16,28 @@ export interface ParsedItem {
 }
 
 const ALIASES: Record<ParsedItemField, string[]> = {
-  product_name: ["ürün adı", "ürün", "malzeme", "isim", "name", "product", "description", "açıklama", "item", "material"],
+  product_name: [
+    "ürün adı", "ürün", "malzeme", "isim", "name", "product", "açıklama", "item", "material",
+    "type & description of the item", "malzemenin cinsi ve açıklaması", "description of the item",
+    "type & description", "description",
+  ],
   brand: ["marka", "brand", "make", "manufacturer", "üretici"],
-  quantity: ["miktar", "adet", "qty", "quantity", "amount", "miktarı"],
-  unit: ["birim", "unit", "ölçü", "uom", "ölçü birimi"],
-  impa_code: ["impa", "impa kodu", "impa code", "impa no", "impa_code"],
-  description: ["açıklama", "not", "notes", "remarks", "comment", "yorum", "detay", "detail"],
+  quantity: [
+    "miktar", "adet", "qty", "quantity", "amount", "miktarı",
+    "request", "i̇stek", "istek", "talep", "request qty",
+  ],
+  unit: [
+    "birim", "unit", "ölçü", "uom", "ölçü birimi",
+    "request unit", "talep birimi",
+  ],
+  impa_code: [
+    "impa", "impa kodu", "impa code", "impa no", "impa_code",
+    "issa code", "issa", "issa no", "issa kodu",
+  ],
+  description: [
+    "açıklama", "not", "notes", "remarks", "comment", "yorum", "detay", "detail",
+    "notlar",
+  ],
 };
 
 function normalize(s: string) {
