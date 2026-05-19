@@ -103,7 +103,7 @@ export default function SuppliersPage() {
           </button>
         </div>
         <p className="text-sm mt-2" style={{ color: "#7a6e67" }}>
-          Cevap oranı ve ortalama yanıt süresi son 30 günden hesaplanır. RFQ atarken havuz buradan oluşur.
+          Cevap oranı ve ortalama yanıt süresi son 30 günden hesaplanır. Teklif talebi atarken havuz buradan oluşur.
         </p>
       </div>
 
@@ -185,7 +185,7 @@ export default function SuppliersPage() {
                     className="text-xs font-medium px-2.5 py-1 rounded border"
                     style={{ borderColor: "#e6ddd4", color: "#111" }}
                   >
-                    RFQ ekle
+                    Teklif ekle
                   </button>
                 </div>
               </div>

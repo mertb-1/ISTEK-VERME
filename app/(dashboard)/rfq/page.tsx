@@ -12,23 +12,26 @@ export default async function RfqListPage() {
     .eq("buyer_id", user!.id)
     .order("created_at", { ascending: false });
 
+  const openCount = rfqs?.filter((r) => r.status === "open").length ?? 0;
+  const closedCount = rfqs?.filter((r) => r.status !== "open").length ?? 0;
+
   return (
     <div className="p-8 max-w-5xl">
       {/* Heading */}
       <div className="mb-8">
         <p className="text-xs tracking-widest mb-3" style={{ color: "#7a6e67", letterSpacing: "0.12em" }}>
-          SATIN ALMA · RFQ&apos;LAR
+          SATIN ALMA · TEKLİF TALEPLERİ
         </p>
         <div className="flex items-end justify-between">
           <h1 className="font-display text-5xl leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            RFQ <em style={{ color: "#8b3a2a", fontStyle: "italic" }}>kütüğü.</em>
+            Teklif <em style={{ color: "#8b3a2a", fontStyle: "italic" }}>kütüğü.</em>
           </h1>
           <Link
             href="/rfq/new"
             className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded mb-1"
             style={{ background: "#111", color: "#fff" }}
           >
-            + Yeni RFQ
+            + Yeni Teklif
           </Link>
         </div>
         <p className="text-sm mt-2" style={{ color: "#7a6e67" }}>
@@ -36,15 +39,31 @@ export default async function RfqListPage() {
         </p>
       </div>
 
+      {/* Stats bar */}
+      {rfqs && rfqs.length > 0 && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "TOPLAM", value: rfqs.length },
+            { label: "AÇIK", value: openCount },
+            { label: "KAPALI", value: closedCount },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl p-4" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+              <p className="text-xs tracking-widest mb-1" style={{ color: "#7a6e67", letterSpacing: "0.1em" }}>{s.label}</p>
+              <p className="font-display text-3xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {!rfqs || rfqs.length === 0 ? (
         <div className="rounded-xl px-6 py-20 text-center" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-          <p className="text-sm mb-2" style={{ color: "#7a6e67" }}>Henüz teklif oluşturmadınız.</p>
+          <p className="text-sm mb-2" style={{ color: "#7a6e67" }}>Henüz teklif talebi oluşturmadınız.</p>
           <Link
             href="/rfq/new"
             className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded mt-4"
             style={{ background: "#111", color: "#fff" }}
           >
-            + İlk RFQ&apos;yu Oluştur
+            + İlk Teklif Talebini Oluştur
           </Link>
         </div>
       ) : (
@@ -65,7 +84,7 @@ export default async function RfqListPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-xs font-mono" style={{ color: "#b0a49e" }}>
-                    RFQ-{rfq.id.slice(0, 8).toUpperCase()}
+                    TKF-{rfq.id.slice(0, 8).toUpperCase()}
                   </span>
                   <span
                     className="flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded"

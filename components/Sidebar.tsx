@@ -8,9 +8,9 @@ import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle, Be
 import { APP_NAME } from "@/lib/config";
 
 const navItems = [
-  { href: "/dashboard", label: "Pano", icon: LayoutDashboard },
-  { href: "/rfq", label: "RFQ&apos;lar", icon: FileText },
-  { href: "/rfq/new", label: "Yeni RFQ", icon: Plus },
+  { href: "/dashboard", label: "Ana Sayfa", icon: LayoutDashboard },
+  { href: "/rfq", label: "Teklifler", icon: FileText },
+  { href: "/rfq/new", label: "Yeni Teklif", icon: Plus },
   { href: "/suppliers", label: "Tedarikçiler", icon: Users },
   { href: "/profile", label: "Profilim", icon: UserCircle },
 ];
@@ -91,7 +91,7 @@ export default function Sidebar({
             style={{ background: "#fff", color: "#111" }}
           >
             <Plus className="w-3 h-3" />
-            Yeni RFQ
+            Yeni Teklif
           </Link>
         </div>
       </div>
