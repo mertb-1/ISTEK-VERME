@@ -137,8 +137,7 @@ export default function NewRfqPage() {
       return next;
     });
 
-  const handleAddSupplier = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddSupplier = async () => {
     setAddSupplierError("");
     if (!newSupplier.company_name.trim()) { setAddSupplierError("Firma adı zorunludur."); return; }
     if (!newSupplier.email.trim()) { setAddSupplierError("E-posta zorunludur."); return; }
@@ -482,7 +481,7 @@ export default function NewRfqPage() {
           {showAddSupplier && (
             <div ref={newSupplierRef} className="px-6 py-4 bg-blue-50 border-b border-blue-100">
               <p className="text-xs font-semibold text-blue-700 mb-3 uppercase tracking-wide">Yeni Tedarikçi Ekle</p>
-              <form onSubmit={handleAddSupplier} className="space-y-3">
+              <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Firma Adı *</label>
@@ -531,14 +530,15 @@ export default function NewRfqPage() {
                   <p className="text-xs text-red-600">{addSupplierError}</p>
                 )}
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleAddSupplier}
                   disabled={addingSupplier}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   {addingSupplier && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {addingSupplier ? "Ekleniyor..." : "Ekle ve Seç"}
                 </button>
-              </form>
+              </div>
             </div>
           )}
 
