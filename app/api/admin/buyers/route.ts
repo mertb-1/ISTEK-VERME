@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMailTemplate, replaceVars, buildMailHtml, sendSimpleMail } from "@/lib/mail";
+import { APP_NAME } from "@/lib/config";
 
 // UUID format kontrolü
 function isUuid(val: unknown): val is string {
@@ -71,6 +73,45 @@ export async function PATCH(req: NextRequest) {
   if (error) {
     console.error("buyer PATCH error:", error.code);
     return NextResponse.json({ error: "Güncelleme başarısız." }, { status: 500 });
+  }
+
+  // Onaylandıysa alıcıya bildirim maili gönder
+  if (status === "approved") {
+    try {
+      const { data: buyer } = await adminClient
+        .from("buyers")
+        .select("email, full_name, company_name")
+        .eq("id", id)
+        .single();
+
+      if (buyer?.email) {
+        const template = await getMailTemplate("approval");
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const vars: Record<string, string> = {
+          alici_adi: buyer.full_name ?? "",
+          firma_adi: buyer.company_name ?? APP_NAME,
+          giris_linki: `${appUrl}/login`,
+        };
+        const subject = template ? replaceVars(template.subject, vars) : `Hesabınız Onaylandı - ${vars.firma_adi}`;
+        const greeting = template ? replaceVars(template.greeting, vars) : `Sayın ${vars.alici_adi},`;
+        const bodyText = template ? replaceVars(template.body, vars) : `${vars.firma_adi} teklif platformuna üyeliğiniz onaylandı.`;
+        const signature = template ? replaceVars(template.signature, vars) : APP_NAME;
+
+        const html = buildMailHtml({
+          greeting,
+          body: bodyText,
+          signature,
+          companyName: buyer.company_name ?? APP_NAME,
+          type: "approval",
+          actionUrl: `${appUrl}/login`,
+          appName: APP_NAME,
+        });
+
+        await sendSimpleMail({ to: buyer.email, subject, html, fromName: APP_NAME });
+      }
+    } catch (mailErr) {
+      console.error("approval mail error:", mailErr);
+    }
   }
 
   return NextResponse.json({ success: true });

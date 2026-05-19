@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMailTemplate, replaceVars, buildMailHtml, sendSimpleMail } from "@/lib/mail";
+import { APP_NAME } from "@/lib/config";
 
 // Sadece izin verilen alanlar quote_items'a yazılır — injection önlemi
 const ALLOWED_ITEM_KEYS = ["rfq_item_id", "unit_price", "total_price", "offered_brand", "in_stock"] as const;
@@ -107,6 +109,75 @@ export async function POST(req: NextRequest) {
   if (updateErr) {
     console.error("recipient update error:", updateErr.code);
     // Quote kaydedildi, bu hatayı kullanıcıya yansıtmıyoruz
+  }
+
+  // Alıcıya bildirim maili gönder (arka planda, hata olsa da devam et)
+  try {
+    type RecipientWithRfq = {
+      rfq_id: string;
+      suppliers: { company_name: string } | { company_name: string }[] | null;
+      rfqs: {
+        id: string;
+        buyer_id: string;
+        buyers: { email: string; company_name: string; full_name: string } | { email: string; company_name: string; full_name: string }[] | null;
+      } | { id: string; buyer_id: string; buyers: unknown } | { id: string; buyer_id: string; buyers: unknown }[] | null;
+    };
+    const { data: recipientFull } = await supabase
+      .from("rfq_recipients")
+      .select("rfq_id, suppliers(company_name), rfqs(id, buyer_id, buyers(email, company_name, full_name))")
+      .eq("id", recipient_id)
+      .single() as { data: RecipientWithRfq | null };
+
+    if (recipientFull) {
+      const rfqData = Array.isArray(recipientFull.rfqs) ? recipientFull.rfqs[0] : recipientFull.rfqs;
+      const buyerData = rfqData
+        ? (Array.isArray((rfqData as { buyers: unknown }).buyers)
+            ? ((rfqData as { buyers: unknown[] }).buyers as { email: string; company_name: string; full_name: string }[])[0]
+            : (rfqData as { buyers: { email: string; company_name: string; full_name: string } | null }).buyers)
+        : null;
+      const supplierData = Array.isArray(recipientFull.suppliers) ? recipientFull.suppliers[0] : recipientFull.suppliers;
+
+      if (buyerData?.email) {
+        const template = await getMailTemplate("buyer_notification");
+        const rfqNo = (rfqData as { id: string })?.id?.slice(0, 8).toUpperCase() ?? "";
+        const today = new Date().toLocaleDateString("tr-TR", {
+          day: "numeric", month: "long", year: "numeric",
+        });
+        const vars: Record<string, string> = {
+          alici_adi: buyerData.full_name ?? "",
+          tedarikci_adi: supplierData?.company_name ?? "",
+          teklif_no: rfqNo,
+          cevap_tarihi: today,
+          firma_adi: buyerData.company_name ?? APP_NAME,
+        };
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const compareUrl = `${appUrl}/rfq/${(rfqData as { id: string })?.id}`;
+
+        const subject = template ? replaceVars(template.subject, vars) : `Teklif Cevabı Geldi - ${rfqNo}`;
+        const greeting = template ? replaceVars(template.greeting, vars) : `Sayın ${buyerData.full_name},`;
+        const bodyText = template ? replaceVars(template.body, vars) : `${vars.tedarikci_adi} firması teklifinize cevap verdi.`;
+        const signature = template ? replaceVars(template.signature, vars) : APP_NAME;
+
+        const html = buildMailHtml({
+          greeting,
+          body: bodyText,
+          signature,
+          companyName: buyerData.company_name ?? APP_NAME,
+          type: "buyer_notification",
+          actionUrl: compareUrl,
+          appName: APP_NAME,
+        });
+
+        await sendSimpleMail({
+          to: buyerData.email,
+          subject,
+          html,
+          fromName: APP_NAME,
+        });
+      }
+    }
+  } catch (mailErr) {
+    console.error("buyer_notification mail error:", mailErr);
   }
 
   return NextResponse.json({ success: true });

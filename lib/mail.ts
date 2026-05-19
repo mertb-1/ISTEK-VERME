@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { APP_NAME } from "@/lib/config";
+import type { MailTemplateType } from "@/lib/mail-defaults";
 
 type RfqItem = {
   product_name: string;
@@ -25,7 +26,7 @@ type SendRfqMailParams = {
 };
 
 // HTML injection'ı önlemek için tüm user-supplied değerleri escape et
-function esc(str: string): string {
+export function esc(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -34,69 +35,191 @@ function esc(str: string): string {
     .replace(/'/g, "&#x27;");
 }
 
-export async function sendRfqMail(params: SendRfqMailParams) {
-  const { to, supplierName, buyerCompany, rfqTitle, deadline, rfqNotes, magicLink, buyerLogoUrl, replyTo } = params;
+// Şablon değişkenlerini gerçek değerlerle değiştir
+export function replaceVars(
+  template: string,
+  vars: Record<string, string>
+): string {
+  return Object.entries(vars).reduce(
+    (text, [key, val]) =>
+      text.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val ?? ""),
+    template
+  );
+}
 
-  const deadlineText = deadline
-    ? new Date(deadline).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
-    : null;
+// Veritabanından aktif mail şablonunu çek
+export async function getMailTemplate(type: MailTemplateType) {
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("mail_templates")
+    .select("subject, greeting, body, signature")
+    .eq("type", type)
+    .eq("is_active", true)
+    .single();
+  return data;
+}
 
-  const safeLink = encodeURI(magicLink);
+type BuildMailHtmlParams = {
+  greeting: string;
+  body: string;
+  signature: string;
+  logoUrl?: string | null;
+  companyName: string;
+  type: MailTemplateType;
+  actionUrl: string;
+  products?: RfqItem[];
+  appName: string;
+};
 
-  const html = `
-<!DOCTYPE html>
+export function buildMailHtml({
+  greeting,
+  body,
+  signature,
+  logoUrl,
+  companyName,
+  type,
+  actionUrl,
+  products,
+  appName,
+}: BuildMailHtmlParams): string {
+  const safeActionUrl = encodeURI(actionUrl);
+
+  const headerSection = logoUrl
+    ? `<img src="${esc(logoUrl)}" height="60" alt="${esc(companyName)}" style="margin-bottom:8px;max-width:200px;object-fit:contain">`
+    : `<div style="font-size:24px;font-weight:700;color:#ffffff;margin-bottom:4px">${esc(companyName)}</div>`;
+
+  let productTable = "";
+  if (type === "supplier_rfq" && products && products.length > 0) {
+    const rows = products
+      .map(
+        (p) => `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${esc(p.product_name)}</td>
+        <td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">${esc(String(p.quantity))}</td>
+        <td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">${esc(p.unit)}</td>
+      </tr>`
+      )
+      .join("");
+    productTable = `
+      <table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:14px">
+        <thead>
+          <tr style="background:#1e40af;color:#ffffff">
+            <th style="padding:10px 12px;text-align:left;font-weight:600">Ürün</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:600">Miktar</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:600">Birim</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  let buttonLabel = "Teklif Ver &rarr;";
+  if (type === "buyer_notification") buttonLabel = "Teklifleri Karşılaştır &rarr;";
+  if (type === "approval") buttonLabel = "Giriş Yap &rarr;";
+
+  return `<!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:600px;margin:0 auto;padding:32px 16px">
-
-    <!-- Header -->
     <div style="background:#1e40af;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center">
-      ${buyerLogoUrl
-        ? `<img src="${esc(buyerLogoUrl)}" height="60" alt="${esc(buyerCompany)}" style="margin-bottom:8px;max-width:200px;object-fit:contain">`
-        : `<div style="font-size:24px;font-weight:700;color:#ffffff;margin-bottom:4px">${esc(buyerCompany)}</div>`
-      }
-      <div style="color:#bfdbfe;font-size:12px;font-weight:500;letter-spacing:0.05em">via ${APP_NAME.toUpperCase()}</div>
+      ${headerSection}
+      <div style="color:#bfdbfe;font-size:12px;font-weight:500;letter-spacing:0.05em">via ${esc(appName.toUpperCase())}</div>
     </div>
-
-    <!-- Body -->
     <div style="background:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0">
-      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a">Yeni Teklif Talebi</h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#475569">
-        Sayın <strong>${esc(supplierName)}</strong>,<br>
-        <strong>${esc(buyerCompany)}</strong> firması sizden teklif talep ediyor.
-      </p>
-
-      <!-- RFQ Info -->
-      <div style="background:#f8fafc;border-radius:12px;padding:16px 20px;margin-bottom:32px;border:1px solid #e2e8f0">
-        <div style="font-size:16px;font-weight:600;color:#0f172a;margin-bottom:4px">${esc(rfqTitle)}</div>
-        ${deadlineText ? `<div style="font-size:13px;color:#ef4444;font-weight:500;margin-top:4px">Son tarih: ${esc(deadlineText)}</div>` : ""}
-        ${rfqNotes ? `<div style="font-size:13px;color:#64748b;margin-top:8px">${esc(rfqNotes)}</div>` : ""}
-      </div>
-
-      <!-- CTA -->
-      <div style="text-align:center">
-        <p style="font-size:14px;color:#64748b;margin-bottom:20px">
-          Aşağıdaki butona tıklayarak ürün listesini görüntüleyebilir ve fiyat teklifinizi girebilirsiniz.
-        </p>
-        <a href="${safeLink}"
-          style="display:inline-block;background:#2563eb;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">
-          Teklif Ver &rarr;
+      <p style="margin:0 0 16px;font-size:15px;color:#0f172a">${esc(greeting)}</p>
+      <p style="white-space:pre-line;margin:0 0 24px;font-size:15px;color:#475569">${esc(body)}</p>
+      ${productTable}
+      <div style="text-align:center;margin:32px 0">
+        <a href="${safeActionUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">
+          ${buttonLabel}
         </a>
       </div>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+      <p style="color:#6b7280;font-size:14px;white-space:pre-line;margin:0">${esc(signature)}</p>
     </div>
-
-    <!-- Footer -->
     <div style="background:#f8fafc;border-radius:0 0 16px 16px;padding:16px 32px;border:1px solid #e2e8f0;border-top:none;text-align:center">
       <p style="margin:0;font-size:12px;color:#94a3b8">
-        ${APP_NAME} &middot; Denizcilik Tedarik Platformu<br>
-        Bu mail otomatik gönderilmiştir. Yanıtlamayınız.
+        ${esc(companyName)} &middot; ${esc(appName)}<br>
+        Bu mail otomatik gönderilmiştir.
       </p>
     </div>
-
   </div>
 </body>
 </html>`;
+}
+
+export async function sendRfqMail(params: SendRfqMailParams) {
+  const {
+    to,
+    supplierName,
+    buyerCompany,
+    rfqTitle,
+    deadline,
+    rfqNotes,
+    magicLink,
+    buyerLogoUrl,
+    replyTo,
+    items,
+  } = params;
+
+  const deadlineText = deadline
+    ? new Date(deadline).toLocaleDateString("tr-TR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "Belirtilmemiş";
+
+  const rfqDate = new Date().toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  // Şablonu veritabanından çek; yoksa fallback sabit değerler
+  const template = await getMailTemplate("supplier_rfq");
+
+  const vars: Record<string, string> = {
+    gemi_adi: rfqTitle,
+    teklif_tarihi: rfqDate,
+    firma_adi: buyerCompany,
+    yetkili_adi: supplierName,
+    son_tarih: deadlineText,
+    teklif_notu: rfqNotes || "",
+    teklif_no: "",
+    firma_telefon: "",
+    firma_mail: replyTo || "",
+  };
+
+  const subject = template
+    ? replaceVars(template.subject, vars)
+    : `Teklif Talebi: ${rfqTitle} — ${buyerCompany}`;
+
+  const greeting = template
+    ? replaceVars(template.greeting, vars)
+    : `Sayın ${supplierName},`;
+
+  const body = template
+    ? replaceVars(template.body, vars)
+    : `${buyerCompany} firması sizden teklif talep ediyor.\n\nSon tarih: ${deadlineText}${rfqNotes ? "\n\nNot: " + rfqNotes : ""}`;
+
+  const signature = template
+    ? replaceVars(template.signature, vars)
+    : buyerCompany;
+
+  const html = buildMailHtml({
+    greeting,
+    body,
+    signature,
+    logoUrl: buyerLogoUrl,
+    companyName: buyerCompany,
+    type: "supplier_rfq",
+    actionUrl: magicLink,
+    products: items,
+    appName: APP_NAME,
+  });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -104,7 +227,26 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     from: `${buyerCompany} via ${APP_NAME} <onboarding@resend.dev>`,
     to,
     replyTo: replyTo || undefined,
-    subject: `Teklif Talebi: ${rfqTitle} — ${buyerCompany}`,
+    subject,
     html,
+  });
+}
+
+type SendSimpleMailParams = {
+  to: string;
+  subject: string;
+  html: string;
+  replyTo?: string;
+  fromName?: string;
+};
+
+export async function sendSimpleMail(params: SendSimpleMailParams) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  return resend.emails.send({
+    from: `${params.fromName ?? APP_NAME} <onboarding@resend.dev>`,
+    to: params.to,
+    replyTo: params.replyTo,
+    subject: params.subject,
+    html: params.html,
   });
 }
