@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   // RFQ sahibinin bu kullanıcı olduğunu doğrula
   const { data: rfq } = await admin
     .from("rfqs")
-    .select("id, title, notes, deadline, buyer_id, buyers(company_name)")
+    .select("id, title, notes, deadline, buyer_id, buyers(company_name, company_logo_url, company_email)")
     .eq("id", rfq_id)
     .eq("buyer_id", user.id)
     .single();
@@ -50,9 +50,11 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const buyerCompany =
-    (Array.isArray(rfq.buyers) ? rfq.buyers[0] : (rfq.buyers as { company_name?: string }))
-      ?.company_name ?? "";
+  type BuyerInfo = { company_name?: string; company_logo_url?: string | null; company_email?: string | null };
+  const buyerInfo = (Array.isArray(rfq.buyers) ? rfq.buyers[0] : rfq.buyers) as BuyerInfo;
+  const buyerCompany = buyerInfo?.company_name ?? "";
+  const buyerLogoUrl = buyerInfo?.company_logo_url ?? null;
+  const buyerReplyTo = buyerInfo?.company_email || user.email || undefined;
 
   const results = await Promise.allSettled(
     recipients.map(async (r) => {
@@ -69,6 +71,8 @@ export async function POST(req: NextRequest) {
         rfqNotes: rfq.notes,
         items: items ?? [],
         magicLink: `${appUrl}/quote/${r.magic_token}`,
+        buyerLogoUrl,
+        replyTo: buyerReplyTo,
       });
 
       // Gönderim zamanını kaydet — hata olsa bile devam et

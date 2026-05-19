@@ -20,6 +20,8 @@ type SendRfqMailParams = {
   rfqNotes?: string;
   items: RfqItem[];
   magicLink: string;
+  buyerLogoUrl?: string | null;
+  replyTo?: string;
 };
 
 // HTML injection'ı önlemek için tüm user-supplied değerleri escape et
@@ -33,7 +35,7 @@ function esc(str: string): string {
 }
 
 export async function sendRfqMail(params: SendRfqMailParams) {
-  const { to, supplierName, buyerCompany, rfqTitle, deadline, rfqNotes, magicLink } = params;
+  const { to, supplierName, buyerCompany, rfqTitle, deadline, rfqNotes, magicLink, buyerLogoUrl, replyTo } = params;
 
   const deadlineText = deadline
     ? new Date(deadline).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
@@ -50,8 +52,11 @@ export async function sendRfqMail(params: SendRfqMailParams) {
 
     <!-- Header -->
     <div style="background:#1e40af;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center">
-      <div style="font-size:28px;margin-bottom:8px">&#9875;</div>
-      <div style="color:#bfdbfe;font-size:13px;font-weight:500;letter-spacing:0.05em">${APP_NAME.toUpperCase()}</div>
+      ${buyerLogoUrl
+        ? `<img src="${esc(buyerLogoUrl)}" height="60" alt="${esc(buyerCompany)}" style="margin-bottom:8px;max-width:200px;object-fit:contain">`
+        : `<div style="font-size:24px;font-weight:700;color:#ffffff;margin-bottom:4px">${esc(buyerCompany)}</div>`
+      }
+      <div style="color:#bfdbfe;font-size:12px;font-weight:500;letter-spacing:0.05em">via ${APP_NAME.toUpperCase()}</div>
     </div>
 
     <!-- Body -->
@@ -96,8 +101,9 @@ export async function sendRfqMail(params: SendRfqMailParams) {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   return resend.emails.send({
-    from: `${APP_NAME} <onboarding@resend.dev>`,
+    from: `${buyerCompany} via ${APP_NAME} <onboarding@resend.dev>`,
     to,
+    replyTo: replyTo || undefined,
     subject: `Teklif Talebi: ${rfqTitle} — ${buyerCompany}`,
     html,
   });

@@ -30,6 +30,7 @@ export default function QuoteForm({
   rfq,
   supplier,
   buyerCompany,
+  buyerLogoUrl,
   items,
 }: {
   token: string;
@@ -37,6 +38,7 @@ export default function QuoteForm({
   rfq: { title: string; notes: string; deadline: string };
   supplier: { company_name: string; contact_name: string };
   buyerCompany: string;
+  buyerLogoUrl?: string | null;
   items: RfqItem[];
 }) {
   const router = useRouter();
@@ -113,6 +115,24 @@ export default function QuoteForm({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Alıcı firma kimliği */}
+      <div className="bg-white border-b border-gray-200 py-5">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          {buyerLogoUrl ? (
+            <img
+              src={buyerLogoUrl}
+              alt={buyerCompany}
+              className="h-12 mx-auto object-contain mb-2"
+            />
+          ) : (
+            <p className="text-lg font-bold text-slate-800 mb-1">{buyerCompany}</p>
+          )}
+          <p className="text-sm text-gray-500">
+            Bu teklif talebi <strong>{buyerCompany}</strong> tarafından gönderilmiştir.
+          </p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="bg-slate-900">
         <div className="max-w-4xl mx-auto px-4 py-5">

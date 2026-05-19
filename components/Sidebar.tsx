@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Anchor, Menu, X } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 
 const navItems = [
@@ -12,12 +12,13 @@ const navItems = [
   { href: "/rfq", label: "Tekliflerim", icon: FileText },
   { href: "/rfq/new", label: "Yeni Teklif", icon: Plus },
   { href: "/suppliers", label: "Tedarikçiler", icon: Users },
+  { href: "/profile", label: "Profilim", icon: UserCircle },
 ];
 
 export default function Sidebar({
   buyer,
 }: {
-  buyer: { full_name: string; company_name: string };
+  buyer: { full_name: string; company_name: string; company_logo_url?: string | null };
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -45,9 +46,17 @@ export default function Sidebar({
     .join("")
     .toUpperCase();
 
+  const companyInitials = buyer.company_name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
     <>
-      {/* Topbar — her ekran boyutunda görünür */}
+      {/* Topbar */}
       <div className="fixed top-0 left-0 right-0 z-40 bg-slate-900 border-b border-slate-800 flex items-center gap-3 px-4 h-14">
         <button
           onClick={() => setOpen(true)}
@@ -56,12 +65,23 @@ export default function Sidebar({
         >
           <Menu className="w-5 h-5" />
         </button>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
-            <Anchor className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-white font-bold text-sm tracking-tight">{APP_NAME}</span>
-        </div>
+        <Link href="/dashboard" className="flex items-center gap-2">
+          {buyer.company_logo_url ? (
+            <img
+              src={buyer.company_logo_url}
+              alt={buyer.company_name}
+              className="object-contain"
+              style={{ height: 32, maxWidth: 120 }}
+            />
+          ) : (
+            <>
+              <div className="w-7 h-7 rounded-md bg-blue-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {companyInitials}
+              </div>
+              <span className="text-white font-bold text-sm tracking-tight">{buyer.company_name}</span>
+            </>
+          )}
+        </Link>
       </div>
 
       {/* Backdrop */}
@@ -89,16 +109,27 @@ export default function Sidebar({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Logo */}
+        {/* Logo / Firma */}
         <div className="px-5 py-5 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Anchor className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <div className="text-white font-bold text-sm tracking-tight">{APP_NAME}</div>
-              <div className="text-slate-500 text-xs mt-0.5">Denizcilik Platformu</div>
-            </div>
+            {buyer.company_logo_url ? (
+              <img
+                src={buyer.company_logo_url}
+                alt={buyer.company_name}
+                className="object-contain"
+                style={{ height: 36, maxWidth: 140 }}
+              />
+            ) : (
+              <>
+                <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {companyInitials}
+                </div>
+                <div>
+                  <div className="text-white font-bold text-sm tracking-tight">{buyer.company_name}</div>
+                  <div className="text-slate-500 text-xs mt-0.5">{APP_NAME}</div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

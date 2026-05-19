@@ -10,7 +10,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
     .from("rfq_recipients")
     .select(`
       id, status, magic_token,
-      rfqs(id, title, notes, deadline, buyers(company_name)),
+      rfqs(id, title, notes, deadline, buyers(company_name, company_logo_url)),
       suppliers(company_name, contact_name),
       quotes(id)
     `)
@@ -20,7 +20,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
   if (!recipient) notFound();
 
   // Süresi geçmiş mi kontrol et
-  type RfqData = { id: string; title: string; notes: string; deadline: string; buyers: { company_name: string } | { company_name: string }[] };
+  type RfqData = { id: string; title: string; notes: string; deadline: string; buyers: { company_name: string; company_logo_url?: string | null } | { company_name: string; company_logo_url?: string | null }[] };
   const rfq = (Array.isArray(recipient.rfqs) ? recipient.rfqs[0] : recipient.rfqs) as RfqData;
   if (rfq?.deadline) {
     const deadline = new Date(rfq.deadline);
@@ -40,7 +40,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
 
   type SupplierData = { company_name: string; contact_name: string };
   const supplier = (Array.isArray(recipient.suppliers) ? recipient.suppliers[0] : recipient.suppliers) as SupplierData;
-  const buyer = (Array.isArray(rfq.buyers) ? rfq.buyers[0] : rfq.buyers) as { company_name: string };
+  const buyer = (Array.isArray(rfq.buyers) ? rfq.buyers[0] : rfq.buyers) as { company_name: string; company_logo_url?: string | null };
 
   return (
     <QuoteForm
@@ -49,6 +49,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
       rfq={{ title: rfq.title, notes: rfq.notes, deadline: rfq.deadline }}
       supplier={{ company_name: supplier?.company_name, contact_name: supplier?.contact_name }}
       buyerCompany={buyer?.company_name ?? ""}
+      buyerLogoUrl={buyer?.company_logo_url ?? null}
       items={items ?? []}
     />
   );
