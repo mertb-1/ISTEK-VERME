@@ -85,10 +85,7 @@ export default async function DashboardPage() {
                 <li key={rfq.id}>
                   <Link
                     href={`/rfq/${rfq.id}`}
-                    className="flex items-center justify-between px-6 py-4 transition-colors group"
-                    style={{ background: "transparent" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#faf4ee")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    className="flex items-center justify-between px-6 py-4 transition-colors group hover:bg-amber-50"
                   >
                     <div className="flex items-center gap-3">
                       <span

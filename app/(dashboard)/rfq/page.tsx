@@ -60,10 +60,8 @@ export default async function RfqListPage() {
               <Link
                 key={rfq.id}
                 href={`/rfq/${rfq.id}`}
-                className="block rounded-xl p-5 transition-all group"
+                className="block rounded-xl p-5 transition-all group hover:border-orange-800"
                 style={{ background: "#fff", border: "1px solid #e6ddd4" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "#8b3a2a")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "#e6ddd4")}
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-xs font-mono" style={{ color: "#b0a49e" }}>
