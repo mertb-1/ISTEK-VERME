@@ -307,6 +307,7 @@ export default function NewRfqPage() {
                     placeholder="Miktar"
                     type="number"
                     min="0"
+                    step="any"
                     value={item.quantity}
                     onChange={(e) => updateItem(idx, "quantity", e.target.value)}
                   />
