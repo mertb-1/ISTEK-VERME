@@ -2,9 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+:root {
+  --cream: #faf4ee;
+  --ink: #111111;
+  --rust: #8b3a2a;
+  --warm-border: #e6ddd4;
+  --warm-card: #ffffff;
+  --warm-muted: #7a6e67;
+}
+
 body {
-  color: #111827;
-  background: #f9fafb;
+  color: var(--ink);
+  background: var(--cream);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.font-display {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+
+.text-rust {
+  color: var(--rust);
 }
 
 @layer utilities {

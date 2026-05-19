@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const CATEGORIES = ["Yedek Parça", "Yağ/Kimyasal", "Gıda/Zahire", "Teknik Hizmet", "Diğer"];
 
@@ -25,6 +24,14 @@ type Supplier = {
 
 const emptyForm = { company_name: "", contact_name: "", email: "", phone: "", category: "", notes: "" };
 
+const categoryColors: Record<string, { bg: string; color: string }> = {
+  "Yedek Parça":   { bg: "#f0edf8", color: "#5b3fa0" },
+  "Yağ/Kimyasal":  { bg: "#fef5e4", color: "#a06a00" },
+  "Gıda/Zahire":   { bg: "#edf8f1", color: "#1a7a3a" },
+  "Teknik Hizmet": { bg: "#fdf0ee", color: "#8b3a2a" },
+  "Diğer":         { bg: "#f5f0eb", color: "#7a6e67" },
+};
+
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,10 +44,7 @@ export default function SuppliersPage() {
   const supabase = createClient();
 
   const fetchSuppliers = useCallback(async () => {
-    const { data } = await supabase
-      .from("suppliers")
-      .select("*")
-      .order("company_name");
+    const { data } = await supabase.from("suppliers").select("*").order("company_name");
     setSuppliers(data ?? []);
     setLoading(false);
   }, [supabase]);
@@ -48,13 +52,17 @@ export default function SuppliersPage() {
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setError(""); setOpen(true); };
-  const openEdit = (s: Supplier) => { setEditing(s); setForm({ company_name: s.company_name, contact_name: s.contact_name ?? "", email: s.email, phone: s.phone ?? "", category: s.category ?? "", notes: s.notes ?? "" }); setError(""); setOpen(true); };
+  const openEdit = (s: Supplier) => {
+    setEditing(s);
+    setForm({ company_name: s.company_name, contact_name: s.contact_name ?? "", email: s.email, phone: s.phone ?? "", category: s.category ?? "", notes: s.notes ?? "" });
+    setError("");
+    setOpen(true);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError("");
-
     if (editing) {
       const { error } = await supabase.from("suppliers").update(form).eq("id", editing.id);
       if (error) { setError(error.message); setSaving(false); return; }
@@ -63,7 +71,6 @@ export default function SuppliersPage() {
       const { error } = await supabase.from("suppliers").insert({ ...form, buyer_id: user!.id });
       if (error) { setError(error.message); setSaving(false); return; }
     }
-
     await fetchSuppliers();
     setOpen(false);
     setSaving(false);
@@ -75,104 +82,117 @@ export default function SuppliersPage() {
     setSuppliers((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const categoryColors: Record<string, string> = {
-    "Yedek Parça": "bg-blue-50 text-blue-700",
-    "Yağ/Kimyasal": "bg-amber-50 text-amber-700",
-    "Gıda/Zahire": "bg-emerald-50 text-emerald-700",
-    "Teknik Hizmet": "bg-purple-50 text-purple-700",
-    "Diğer": "bg-gray-100 text-gray-600",
-  };
-
   return (
     <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tedarikçi Rehberi</h1>
-          <p className="text-gray-500 mt-1">
-            <span className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
-              {suppliers.length}
-            </span>
-            {" "}tedarikçi kayıtlı
-          </p>
+      {/* Heading */}
+      <div className="mb-8">
+        <p className="text-xs tracking-widest mb-3" style={{ color: "#7a6e67", letterSpacing: "0.12em" }}>
+          TEDARİKÇİLER · {suppliers.length} AKTİF
+        </p>
+        <div className="flex items-end justify-between">
+          <h1 className="font-display text-5xl leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            Tedarikçi <em style={{ color: "#8b3a2a", fontStyle: "italic" }}>rehberi.</em>
+          </h1>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded mb-1"
+            style={{ background: "#111", color: "#fff" }}
+          >
+            <Plus className="w-4 h-4" />
+            Tedarikçi ekle
+          </button>
         </div>
-        <Button onClick={openAdd} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Tedarikçi Ekle
-        </Button>
+        <p className="text-sm mt-2" style={{ color: "#7a6e67" }}>
+          Cevap oranı ve ortalama yanıt süresi son 30 günden hesaplanır. RFQ atarken havuz buradan oluşur.
+        </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Yükleniyor...</div>
-        ) : suppliers.length === 0 ? (
-          <div className="px-6 py-16 text-center">
-            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-6 h-6 text-gray-400" />
-            </div>
-            <p className="text-gray-700 font-medium mb-1">Henüz tedarikçi eklenmedi</p>
-            <p className="text-gray-400 text-sm mb-5">Tedarikçilerinizi ekleyerek teklif taleblerini gönderin.</p>
-            <Button onClick={openAdd} variant="outline">İlk Tedarikçiyi Ekle</Button>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50">
-                <TableHead className="font-medium text-gray-600">Firma / Yetkili</TableHead>
-                <TableHead className="font-medium text-gray-600">E-posta</TableHead>
-                <TableHead className="font-medium text-gray-600">Telefon</TableHead>
-                <TableHead className="font-medium text-gray-600">Kategori</TableHead>
-                <TableHead className="text-right font-medium text-gray-600">İşlem</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {suppliers.map((s) => {
-                const initials = s.company_name
-                  .split(" ")
-                  .map((w: string) => w[0])
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase();
-                return (
-                  <TableRow key={s.id} className="hover:bg-gray-50/50">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 flex-shrink-0">
-                          {initials}
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{s.company_name}</div>
-                          {s.contact_name && (
-                            <div className="text-xs text-gray-400 mt-0.5">{s.contact_name}</div>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-gray-600 text-sm">{s.email}</TableCell>
-                    <TableCell className="text-gray-600 text-sm">{s.phone || "—"}</TableCell>
-                    <TableCell>
-                      {s.category && (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryColors[s.category] ?? "bg-gray-100 text-gray-600"}`}>
-                          {s.category}
-                        </span>
+      {loading ? (
+        <div className="py-16 text-center text-sm" style={{ color: "#7a6e67" }}>Yükleniyor...</div>
+      ) : suppliers.length === 0 ? (
+        <div className="rounded-xl px-6 py-16 text-center" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <p className="text-sm mb-4" style={{ color: "#7a6e67" }}>Henüz tedarikçi eklenmedi.</p>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded"
+            style={{ background: "#111", color: "#fff" }}
+          >
+            <Plus className="w-4 h-4" />
+            İlk Tedarikçiyi Ekle
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {suppliers.map((s) => {
+            const initials = s.company_name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+            const catStyle = categoryColors[s.category] ?? categoryColors["Diğer"];
+            return (
+              <div
+                key={s.id}
+                className="rounded-xl p-5"
+                style={{ background: "#fff", border: "1px solid #e6ddd4" }}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                      style={{ background: "#f5ede6", color: "#8b3a2a" }}
+                    >
+                      {initials}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm" style={{ color: "#111" }}>{s.company_name}</div>
+                      {s.contact_name && (
+                        <div className="text-xs mt-0.5" style={{ color: "#7a6e67" }}>{s.contact_name}</div>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(s)} className="h-8 w-8 text-gray-500 hover:text-gray-700">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)} className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEdit(s)}
+                      className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+                      style={{ color: "#b0a49e" }}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(s.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded transition-colors"
+                      style={{ color: "#b0a49e" }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category tags */}
+                {s.category && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span
+                      className="text-xs px-2 py-0.5 rounded"
+                      style={{ background: catStyle.bg, color: catStyle.color }}
+                    >
+                      {s.category}
+                    </span>
+                  </div>
+                )}
+
+                {/* Email */}
+                <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: "1px solid #f0e8e0" }}>
+                  <span className="text-xs" style={{ color: "#7a6e67" }}>{s.email}</span>
+                  <button
+                    className="text-xs font-medium px-2.5 py-1 rounded border"
+                    style={{ borderColor: "#e6ddd4", color: "#111" }}
+                  >
+                    RFQ ekle
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -212,11 +232,11 @@ export default function SuppliersPage() {
                 <Label htmlFor="notes">Notlar</Label>
                 <Textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Özel notlar..." rows={3} />
               </div>
-              {error && <div className="bg-red-50 text-red-600 text-sm px-3 py-2 rounded-lg">{error}</div>}
+              {error && <div className="text-sm px-3 py-2 rounded" style={{ background: "#fdf0ee", color: "#8b3a2a" }}>{error}</div>}
             </div>
             <DialogFooter className="mt-4">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>İptal</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Kaydediliyor..." : editing ? "Güncelle" : "Ekle"}</Button>
+              <Button type="submit" disabled={saving} style={{ background: "#111", color: "#fff" }}>{saving ? "Kaydediliyor..." : editing ? "Güncelle" : "Ekle"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

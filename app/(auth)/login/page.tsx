@@ -1,16 +1,16 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Anchor, CheckCircle } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [remember, setRemember] = useState(true);
   const [form, setForm] = useState({ email: "", password: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,80 +58,83 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-            <Anchor className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-white font-bold text-lg tracking-tight">{APP_NAME}</span>
-        </div>
-
-        <div>
-          <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Denizcilik sektörü için<br />akıllı teklif platformu
-          </h2>
-          <p className="text-slate-400 text-lg mb-10">
-            Tedarikçilerinize otomatik teklif talepleri gönderin, fiyatları karşılaştırın.
-          </p>
-          <ul className="space-y-3">
-            {[
-              "Tedarikçilere otomatik mail ile teklif talebi",
-              "Magic link ile kayıtsız tedarikçi cevabı",
-              "Anlık fiyat karşılaştırma tablosu",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3 text-slate-300">
-                <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="text-slate-600 text-sm">{APP_NAME}. Tüm hakları saklıdır.</p>
+    <div className="min-h-screen flex flex-col" style={{ background: "#faf4ee" }}>
+      {/* Top bar */}
+      <div className="w-full flex items-center justify-between px-6 py-3" style={{ background: "#111111" }}>
+        <span className="text-white text-xs tracking-widest uppercase font-medium" style={{ letterSpacing: "0.12em" }}>
+          {APP_NAME}
+        </span>
+        <span className="text-white text-xs tracking-widest uppercase" style={{ letterSpacing: "0.1em", opacity: 0.4 }}>
+          GİRİŞ
+        </span>
       </div>
 
-      <div className="flex-1 flex items-center justify-center py-12 px-6">
+      {/* Main */}
+      <div className="flex-1 flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-sm">
-          <div className="flex items-center gap-2 mb-10 lg:hidden">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Anchor className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-gray-900">{APP_NAME}</span>
-          </div>
-
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Giriş Yap</h1>
-            <p className="text-gray-500 mt-1">Hesabınıza erişmek için giriş yapın.</p>
+          {/* Heading */}
+          <div className="mb-10">
+            <p className="text-xs tracking-widest uppercase mb-3" style={{ color: "#7a6e67", letterSpacing: "0.12em" }}>
+              GİRİŞ
+            </p>
+            <h1 className="font-display text-5xl leading-tight mb-3" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              Tekrar{" "}
+              <em style={{ color: "#8b3a2a", fontStyle: "italic" }}>hoş geldin.</em>
+            </h1>
+            <p className="text-sm" style={{ color: "#7a6e67" }}>
+              Filo satın almaları, tedarikçi rehberi ve açık RFQ&apos;lar — tek pencerede.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">E-posta</label>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "#7a6e67", letterSpacing: "0.05em" }}>
+                Şirket e-postası
+              </label>
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="ahmet@firma.com"
+                className="w-full px-3 py-2.5 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-black"
+                style={{ background: "#fff", borderColor: "#e6ddd4", color: "#111" }}
+                placeholder="alper@turkarmator.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Şifre</label>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "#7a6e67", letterSpacing: "0.05em" }}>
+                Parola
+              </label>
               <input
                 type="password"
                 required
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Şifreniz"
+                className="w-full px-3 py-2.5 text-sm rounded border focus:outline-none focus:ring-2 focus:ring-black"
+                style={{ background: "#fff", borderColor: "#e6ddd4", color: "#111" }}
+                placeholder="••••••••••"
               />
             </div>
 
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="rounded"
+                  style={{ accentColor: "#111" }}
+                />
+                <span className="text-xs" style={{ color: "#7a6e67" }}>Bu cihazda hatırla</span>
+              </label>
+              <button type="button" className="text-xs underline" style={{ color: "#7a6e67" }}>
+                Parolayı sıfırla
+              </button>
+            </div>
+
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg">
+              <div className="text-sm px-3 py-2.5 rounded border" style={{ background: "#fdf0ee", borderColor: "#e6c4be", color: "#8b3a2a" }}>
                 {error}
               </div>
             )}
@@ -139,18 +142,27 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm"
+              className="w-full py-3 text-sm font-semibold rounded transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{ background: "#111111", color: "#fff" }}
             >
-              {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+              {loading ? "Giriş yapılıyor..." : <>Hesabıma gir →</>}
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Hesabın yok mu?{" "}
-            <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-              Kayıt ol
+          <div className="mt-5">
+            <Link
+              href="/register"
+              className="text-sm underline"
+              style={{ color: "#7a6e67" }}
+            >
+              Yeni hesap aç
             </Link>
-          </p>
+          </div>
+
+          {/* Supplier info */}
+          <div className="mt-8 p-4 rounded border text-xs" style={{ background: "#f5ede6", borderColor: "#e6ddd4", color: "#7a6e67" }}>
+            <span className="font-semibold" style={{ color: "#111" }}>Tedarikçi misiniz?</span> Kayıt gerekmiyor. Aldığınız davet mailindeki linke tıklayın — formu doldurun, gönderin.
+          </div>
         </div>
       </div>
     </div>

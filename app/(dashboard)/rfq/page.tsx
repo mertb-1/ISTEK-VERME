@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { Plus, FileText, ChevronRight, AlertTriangle, Package } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 export default async function RfqListPage() {
   const supabase = createClient();
@@ -8,49 +8,47 @@ export default async function RfqListPage() {
 
   const { data: rfqs } = await supabase
     .from("rfqs")
-    .select(`
-      id, title, status, deadline, created_at,
-      rfq_recipients(count),
-      rfq_items(count)
-    `)
+    .select(`id, title, status, deadline, created_at, rfq_recipients(count), rfq_items(count)`)
     .eq("buyer_id", user!.id)
     .order("created_at", { ascending: false });
 
   return (
     <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tekliflerim</h1>
-          <p className="text-gray-500 mt-1">
-            {rfqs?.length ?? 0} teklif kayıtlı
-          </p>
+      {/* Heading */}
+      <div className="mb-8">
+        <p className="text-xs tracking-widest mb-3" style={{ color: "#7a6e67", letterSpacing: "0.12em" }}>
+          SATIN ALMA · RFQ&apos;LAR
+        </p>
+        <div className="flex items-end justify-between">
+          <h1 className="font-display text-5xl leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            RFQ <em style={{ color: "#8b3a2a", fontStyle: "italic" }}>kütüğü.</em>
+          </h1>
+          <Link
+            href="/rfq/new"
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded mb-1"
+            style={{ background: "#111", color: "#fff" }}
+          >
+            + Yeni RFQ
+          </Link>
         </div>
-        <Link
-          href="/rfq/new"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Yeni Teklif
-        </Link>
+        <p className="text-sm mt-2" style={{ color: "#7a6e67" }}>
+          Filonuza giden tüm teklif talepleri ve durumları. Kapalı olanları arşivden geri getirebilirsiniz.
+        </p>
       </div>
 
       {!rfqs || rfqs.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 px-6 py-20 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-5">
-            <FileText className="w-7 h-7 text-gray-400" />
-          </div>
-          <p className="text-gray-700 font-medium mb-1">Henüz teklif oluşturmadınız</p>
-          <p className="text-gray-400 text-sm mb-6">Tedarikçilerinize ilk teklif talebini gönderin.</p>
+        <div className="rounded-xl px-6 py-20 text-center" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <p className="text-sm mb-2" style={{ color: "#7a6e67" }}>Henüz teklif oluşturmadınız.</p>
           <Link
             href="/rfq/new"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded mt-4"
+            style={{ background: "#111", color: "#fff" }}
           >
-            <Plus className="w-4 h-4" />
-            İlk Teklifi Oluştur
+            + İlk RFQ&apos;yu Oluştur
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {rfqs.map((rfq) => {
             const recipientCount = (rfq.rfq_recipients as unknown as { count: number }[])?.[0]?.count ?? 0;
             const itemCount = (rfq.rfq_items as unknown as { count: number }[])?.[0]?.count ?? 0;
@@ -62,54 +60,58 @@ export default async function RfqListPage() {
               <Link
                 key={rfq.id}
                 href={`/rfq/${rfq.id}`}
-                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors group"
+                className="block rounded-xl p-5 transition-all group"
+                style={{ background: "#fff", border: "1px solid #e6ddd4" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "#8b3a2a")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "#e6ddd4")}
               >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      isOpen ? "bg-emerald-500" : "bg-gray-300"
-                    }`}
-                  />
-                  <div>
-                    <div className="font-semibold text-gray-900">{rfq.title}</div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                        <Package className="w-3 h-3" />
-                        {itemCount} ürün
-                      </span>
-                      <span className="text-xs text-gray-300">·</span>
-                      <span className="text-xs text-gray-400">
-                        {recipientCount} tedarikçi
-                      </span>
-                      <span className="text-xs text-gray-300">·</span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(rfq.created_at).toLocaleDateString("tr-TR")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {deadline && (
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs ${
-                        isOverdue ? "text-red-500 font-medium" : "text-gray-400"
-                      }`}
-                    >
-                      {isOverdue && <AlertTriangle className="w-3 h-3" />}
-                      Son: {deadline.toLocaleDateString("tr-TR")}
-                    </span>
-                  )}
+                <div className="flex items-start justify-between mb-3">
+                  <span className="text-xs font-mono" style={{ color: "#b0a49e" }}>
+                    RFQ-{rfq.id.slice(0, 8).toUpperCase()}
+                  </span>
                   <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                      isOpen
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
+                    className="flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded"
+                    style={{
+                      background: isOpen ? "#fdf0ee" : "#f5f0eb",
+                      color: isOpen ? "#8b3a2a" : "#7a6e67",
+                    }}
                   >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: isOpen ? "#c0392b" : "#aaa" }}
+                    />
                     {isOpen ? "Açık" : "Kapalı"}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
+                </div>
+
+                <h3 className="font-semibold text-base mb-3 leading-snug" style={{ color: "#111" }}>
+                  {rfq.title}
+                </h3>
+
+                {/* Progress bar */}
+                <div className="w-full h-1 rounded-full mb-3 overflow-hidden" style={{ background: "#f0e8e0" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: recipientCount > 0 ? `${Math.min(100, (recipientCount / Math.max(recipientCount, 6)) * 100)}%` : "0%",
+                      background: isOpen ? "#8b3a2a" : "#aaa",
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs" style={{ color: "#7a6e67" }}>
+                  <span>{itemCount} kalem · {recipientCount} tedarikçi</span>
+                  <div className="flex items-center gap-1">
+                    {isOverdue && <AlertTriangle className="w-3 h-3" style={{ color: "#c0392b" }} />}
+                    {deadline && (
+                      <span style={{ color: isOverdue ? "#c0392b" : "#b0a49e" }}>
+                        {deadline.toLocaleDateString("tr-TR")}
+                      </span>
+                    )}
+                    <span className="ml-2 font-medium" style={{ color: "#111" }}>
+                      İncele →
+                    </span>
+                  </div>
                 </div>
               </Link>
             );

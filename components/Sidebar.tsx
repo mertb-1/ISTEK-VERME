@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle, Bell } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 
 const navItems = [
-  { href: "/dashboard", label: "Ana Sayfa", icon: LayoutDashboard },
-  { href: "/rfq", label: "Tekliflerim", icon: FileText },
-  { href: "/rfq/new", label: "Yeni Teklif", icon: Plus },
+  { href: "/dashboard", label: "Pano", icon: LayoutDashboard },
+  { href: "/rfq", label: "RFQ&apos;lar", icon: FileText },
+  { href: "/rfq/new", label: "Yeni RFQ", icon: Plus },
   { href: "/suppliers", label: "Tedarikçiler", icon: Users },
   { href: "/profile", label: "Profilim", icon: UserCircle },
 ];
@@ -39,13 +39,6 @@ export default function Sidebar({
     router.push("/login");
   };
 
-  const initials = buyer.full_name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   const companyInitials = buyer.company_name
     .split(" ")
     .filter(Boolean)
@@ -54,40 +47,60 @@ export default function Sidebar({
     .join("")
     .toUpperCase();
 
+  const userInitials = buyer.full_name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const currentLabel = navItems.find(
+    (item) =>
+      pathname === item.href ||
+      (item.href === "/rfq" && pathname.startsWith("/rfq") && pathname !== "/rfq/new")
+  )?.label ?? "";
+
   return (
     <>
       {/* Topbar */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-slate-900 border-b border-slate-800 flex items-center gap-3 px-4 h-14">
+      <div
+        className="fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 h-12"
+        style={{ background: "#111111" }}
+      >
         <button
           onClick={() => setOpen(true)}
           aria-label="Menüyü aç"
-          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded transition-colors"
+          style={{ color: "rgba(255,255,255,0.5)" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
+          onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-4 h-4" />
         </button>
-        <Link href="/dashboard" className="flex items-center gap-2">
-          {buyer.company_logo_url ? (
-            <img
-              src={buyer.company_logo_url}
-              alt={buyer.company_name}
-              className="object-contain"
-              style={{ height: 32, maxWidth: 120 }}
-            />
-          ) : (
-            <>
-              <div className="w-7 h-7 rounded-md bg-blue-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                {companyInitials}
-              </div>
-              <span className="text-white font-bold text-sm tracking-tight">{buyer.company_name}</span>
-            </>
-          )}
-        </Link>
+
+        <span className="text-white text-sm font-medium flex-1">{currentLabel}</span>
+
+        {/* Right side */}
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded transition-colors" style={{ color: "rgba(255,255,255,0.7)" }}>
+            <Bell className="w-3.5 h-3.5" />
+          </button>
+          <Link
+            href="/rfq/new"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-colors"
+            style={{ background: "#fff", color: "#111" }}
+          >
+            <Plus className="w-3 h-3" />
+            Yeni RFQ
+          </Link>
+        </div>
       </div>
 
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-40"
+          style={{ background: "rgba(0,0,0,0.5)" }}
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
@@ -95,42 +108,45 @@ export default function Sidebar({
 
       {/* Drawer */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-50 w-72 bg-slate-900 flex flex-col transition-transform duration-300 ease-out ${
+        className={`fixed top-0 left-0 bottom-0 z-50 w-64 flex flex-col transition-transform duration-300 ease-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={{ background: "#111111" }}
         aria-label="Navigasyon menüsü"
       >
-        {/* Kapat butonu */}
+        {/* Close */}
         <button
           onClick={() => setOpen(false)}
           aria-label="Menüyü kapat"
-          className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded transition-colors"
+          style={{ color: "rgba(255,255,255,0.4)" }}
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        {/* Logo / Firma */}
-        <div className="px-5 py-5 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            {buyer.company_logo_url ? (
-              <img
-                src={buyer.company_logo_url}
-                alt={buyer.company_name}
-                className="object-contain"
-                style={{ height: 36, maxWidth: 140 }}
-              />
-            ) : (
-              <>
-                <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {companyInitials}
-                </div>
-                <div>
-                  <div className="text-white font-bold text-sm tracking-tight">{buyer.company_name}</div>
-                  <div className="text-slate-500 text-xs mt-0.5">{APP_NAME}</div>
-                </div>
-              </>
-            )}
-          </div>
+        {/* Brand */}
+        <div className="px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          {buyer.company_logo_url ? (
+            <img
+              src={buyer.company_logo_url}
+              alt={buyer.company_name}
+              className="object-contain"
+              style={{ height: 28, maxWidth: 120 }}
+            />
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-7 h-7 rounded flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                style={{ background: "#8b3a2a" }}
+              >
+                {companyInitials}
+              </div>
+              <div>
+                <div className="text-white text-sm font-medium leading-tight">{buyer.company_name}</div>
+                <div className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{APP_NAME}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -139,43 +155,42 @@ export default function Sidebar({
             const Icon = item.icon;
             const active =
               pathname === item.href ||
-              (item.href === "/rfq" &&
-                pathname.startsWith("/rfq") &&
-                pathname !== "/rfq/new");
+              (item.href === "/rfq" && pathname.startsWith("/rfq") && pathname !== "/rfq/new");
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                }`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors"
+                style={{
+                  background: active ? "rgba(255,255,255,0.1)" : "transparent",
+                  color: active ? "#fff" : "rgba(255,255,255,0.5)",
+                }}
               >
-                <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-blue-400" : ""}`} />
+                <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1">{item.label}</span>
-                {active && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* User info + sign out */}
-        <div className="px-3 py-4 border-t border-slate-800 space-y-0.5">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              {initials}
+        {/* User */}
+        <div className="px-3 py-4" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center gap-3 px-3 py-2 mb-1">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+              style={{ background: "#444" }}
+            >
+              {userInitials}
             </div>
             <div className="min-w-0">
               <div className="text-white text-sm font-medium truncate">{buyer.full_name}</div>
-              <div className="text-slate-500 text-xs truncate">{buyer.company_name}</div>
+              <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.35)" }}>{buyer.company_name}</div>
             </div>
           </div>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors"
+            style={{ color: "rgba(255,255,255,0.4)" }}
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             Çıkış Yap
