@@ -113,7 +113,7 @@ export function buildMailHtml({
       <div style="color:#bfdbfe;font-size:12px;font-weight:500;letter-spacing:0.05em">via ${esc(appName.toUpperCase())}</div>
     </div>
     <div style="background:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0">
-      <p style="margin:0 0 16px;font-size:15px;color:#0f172a;text-align:${greetingAlign}">${esc(greeting)}</p>
+      <p style="white-space:pre-line;margin:0 0 16px;font-size:15px;color:#0f172a;text-align:${greetingAlign}">${esc(greeting)}</p>
       <p style="white-space:pre-line;margin:0 0 24px;font-size:15px;color:#475569;text-align:${bodyAlign}">${esc(body)}</p>
       <div style="text-align:center;margin:32px 0">
         <a href="${safeActionUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">

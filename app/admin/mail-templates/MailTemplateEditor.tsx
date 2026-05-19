@@ -103,7 +103,7 @@ function buildPreviewHtml(tmpl: Template, type: MailTemplateType): string {
     <div style="color:#bfdbfe;font-size:11px;margin-top:4px">via PLATFORM</div>
   </div>
   <div style="padding:28px">
-    <p style="margin:0 0 12px;font-size:14px;color:#0f172a;text-align:${tmpl.greeting_align}">${greeting}</p>
+    <p style="white-space:pre-line;margin:0 0 12px;font-size:14px;color:#0f172a;text-align:${tmpl.greeting_align}">${greeting}</p>
     <p style="white-space:pre-line;margin:0 0 20px;font-size:14px;color:#475569;text-align:${tmpl.body_align}">${body}</p>
     <div style="text-align:center;margin:24px 0">
       <a href="#" style="display:inline-block;background:#1e40af;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none">${buttonLabel}</a>
