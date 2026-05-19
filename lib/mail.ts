@@ -2,6 +2,8 @@ import { Resend } from "resend";
 import { APP_NAME } from "@/lib/config";
 import type { MailTemplateType } from "@/lib/mail-defaults";
 
+export type Align = "left" | "center" | "right";
+
 type RfqItem = {
   product_name: string;
   brand?: string;
@@ -53,34 +55,42 @@ export async function getMailTemplate(type: MailTemplateType) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("mail_templates")
-    .select("subject, greeting, body, signature")
+    .select("subject, greeting, greeting_align, body, body_align, signature, signature_align")
     .eq("type", type)
     .eq("is_active", true)
     .single();
-  return data;
+  return data as (typeof data & {
+    greeting_align?: Align;
+    body_align?: Align;
+    signature_align?: Align;
+  }) | null;
 }
 
 type BuildMailHtmlParams = {
   greeting: string;
+  greetingAlign?: Align;
   body: string;
+  bodyAlign?: Align;
   signature: string;
+  signatureAlign?: Align;
   logoUrl?: string | null;
   companyName: string;
   type: MailTemplateType;
   actionUrl: string;
-  products?: RfqItem[];
   appName: string;
 };
 
 export function buildMailHtml({
   greeting,
+  greetingAlign = "left",
   body,
+  bodyAlign = "left",
   signature,
+  signatureAlign = "left",
   logoUrl,
   companyName,
   type,
   actionUrl,
-  products,
   appName,
 }: BuildMailHtmlParams): string {
   const safeActionUrl = encodeURI(actionUrl);
@@ -88,31 +98,6 @@ export function buildMailHtml({
   const headerSection = logoUrl
     ? `<img src="${esc(logoUrl)}" height="60" alt="${esc(companyName)}" style="margin-bottom:8px;max-width:200px;object-fit:contain">`
     : `<div style="font-size:24px;font-weight:700;color:#ffffff;margin-bottom:4px">${esc(companyName)}</div>`;
-
-  let productTable = "";
-  if (type === "supplier_rfq" && products && products.length > 0) {
-    const rows = products
-      .map(
-        (p) => `
-      <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${esc(p.product_name)}</td>
-        <td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">${esc(String(p.quantity))}</td>
-        <td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">${esc(p.unit)}</td>
-      </tr>`
-      )
-      .join("");
-    productTable = `
-      <table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:14px">
-        <thead>
-          <tr style="background:#1e40af;color:#ffffff">
-            <th style="padding:10px 12px;text-align:left;font-weight:600">Ürün</th>
-            <th style="padding:10px 12px;text-align:center;font-weight:600">Miktar</th>
-            <th style="padding:10px 12px;text-align:center;font-weight:600">Birim</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  }
 
   let buttonLabel = "Teklif Ver &rarr;";
   if (type === "buyer_notification") buttonLabel = "Teklifleri Karşılaştır &rarr;";
@@ -128,16 +113,15 @@ export function buildMailHtml({
       <div style="color:#bfdbfe;font-size:12px;font-weight:500;letter-spacing:0.05em">via ${esc(appName.toUpperCase())}</div>
     </div>
     <div style="background:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0">
-      <p style="margin:0 0 16px;font-size:15px;color:#0f172a">${esc(greeting)}</p>
-      <p style="white-space:pre-line;margin:0 0 24px;font-size:15px;color:#475569">${esc(body)}</p>
-      ${productTable}
+      <p style="margin:0 0 16px;font-size:15px;color:#0f172a;text-align:${greetingAlign}">${esc(greeting)}</p>
+      <p style="white-space:pre-line;margin:0 0 24px;font-size:15px;color:#475569;text-align:${bodyAlign}">${esc(body)}</p>
       <div style="text-align:center;margin:32px 0">
         <a href="${safeActionUrl}" style="display:inline-block;background:#1e40af;color:#ffffff;font-size:16px;font-weight:600;padding:14px 36px;border-radius:12px;text-decoration:none">
           ${buttonLabel}
         </a>
       </div>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
-      <p style="color:#6b7280;font-size:14px;white-space:pre-line;margin:0">${esc(signature)}</p>
+      <p style="color:#6b7280;font-size:14px;white-space:pre-line;margin:0;text-align:${signatureAlign}">${esc(signature)}</p>
     </div>
     <div style="background:#f8fafc;border-radius:0 0 16px 16px;padding:16px 32px;border:1px solid #e2e8f0;border-top:none;text-align:center">
       <p style="margin:0;font-size:12px;color:#94a3b8">
@@ -161,7 +145,6 @@ export async function sendRfqMail(params: SendRfqMailParams) {
     magicLink,
     buyerLogoUrl,
     replyTo,
-    items,
   } = params;
 
   const deadlineText = deadline
@@ -211,13 +194,15 @@ export async function sendRfqMail(params: SendRfqMailParams) {
 
   const html = buildMailHtml({
     greeting,
+    greetingAlign: template?.greeting_align ?? "left",
     body,
+    bodyAlign: template?.body_align ?? "left",
     signature,
+    signatureAlign: template?.signature_align ?? "left",
     logoUrl: buyerLogoUrl,
     companyName: buyerCompany,
     type: "supplier_rfq",
     actionUrl: magicLink,
-    products: items,
     appName: APP_NAME,
   });
 

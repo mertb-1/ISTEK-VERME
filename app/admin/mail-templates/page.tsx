@@ -25,7 +25,7 @@ export default async function MailTemplatesPage() {
   const adminClient = createAdminClient();
   const { data: templates } = await adminClient
     .from("mail_templates")
-    .select("type, subject, greeting, body, signature")
+    .select("type, subject, greeting, greeting_align, body, body_align, signature, signature_align")
     .order("type");
 
   return (

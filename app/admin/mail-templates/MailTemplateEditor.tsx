@@ -3,17 +3,25 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { MAIL_DEFAULTS, type MailTemplateType } from "@/lib/mail-defaults";
+import type { Align } from "@/lib/mail";
 
 type Template = {
   type: MailTemplateType;
   subject: string;
   greeting: string;
+  greeting_align: Align;
   body: string;
+  body_align: Align;
   signature: string;
+  signature_align: Align;
 };
 
 type Props = {
-  initial: Template[];
+  initial: (Omit<Template, "greeting_align" | "body_align" | "signature_align"> & {
+    greeting_align?: string | null;
+    body_align?: string | null;
+    signature_align?: string | null;
+  })[];
 };
 
 const TAB_LABELS: Record<MailTemplateType, string> = {
@@ -24,13 +32,12 @@ const TAB_LABELS: Record<MailTemplateType, string> = {
 
 const TAB_ORDER: MailTemplateType[] = ["supplier_rfq", "buyer_notification", "approval"];
 
-// Hangi alana hangi değişkenler gösterilecek
 const VARS: Record<MailTemplateType, { subject: string[]; body: string[]; signature: string[] }> = {
   supplier_rfq: {
     subject: ["{{gemi_adi}}", "{{teklif_tarihi}}", "{{firma_adi}}", "{{teklif_no}}"],
     body: [
-      "{{firma_adi}}","{{yetkili_adi}}","{{gemi_adi}}","{{son_tarih}}",
-      "{{teklif_notu}}","{{teklif_no}}","{{firma_telefon}}","{{firma_mail}}",
+      "{{firma_adi}}", "{{yetkili_adi}}", "{{gemi_adi}}", "{{son_tarih}}",
+      "{{teklif_notu}}", "{{teklif_no}}", "{{firma_telefon}}", "{{firma_mail}}",
     ],
     signature: ["{{yetkili_adi}}", "{{firma_adi}}", "{{firma_telefon}}", "{{firma_mail}}"],
   },
@@ -59,8 +66,6 @@ const PREVIEW_DATA: Record<string, string> = {
   tedarikci_adi: "Kamarin Ship Supply",
   cevap_tarihi: "19.05.2026",
   alici_adi: "Umut CADIRCI",
-  karsilastirma_linki: "#",
-  giris_linki: "#",
 };
 
 function replacePreview(text: string): string {
@@ -85,23 +90,6 @@ function buildPreviewHtml(tmpl: Template, type: MailTemplateType): string {
   const sig = escHtml(replacePreview(tmpl.signature));
   const companyName = escHtml(PREVIEW_DATA.firma_adi);
 
-  const productTable =
-    type === "supplier_rfq"
-      ? `<table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:14px">
-          <thead>
-            <tr style="background:#1e40af;color:#fff">
-              <th style="padding:10px 12px;text-align:left">Ürün</th>
-              <th style="padding:10px 12px;text-align:center">Miktar</th>
-              <th style="padding:10px 12px;text-align:center">Birim</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">Örnek Ürün 1</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">10</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">ADET</td></tr>
-            <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0">Örnek Ürün 2</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">5</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #e2e8f0">KG</td></tr>
-          </tbody>
-        </table>`
-      : "";
-
   const buttonLabel =
     type === "buyer_notification"
       ? "Teklifleri Karşılaştır →"
@@ -115,19 +103,55 @@ function buildPreviewHtml(tmpl: Template, type: MailTemplateType): string {
     <div style="color:#bfdbfe;font-size:11px;margin-top:4px">via PLATFORM</div>
   </div>
   <div style="padding:28px">
-    <p style="margin:0 0 12px;font-size:14px;color:#0f172a">${greeting}</p>
-    <p style="white-space:pre-line;margin:0 0 20px;font-size:14px;color:#475569">${body}</p>
-    ${productTable}
+    <p style="margin:0 0 12px;font-size:14px;color:#0f172a;text-align:${tmpl.greeting_align}">${greeting}</p>
+    <p style="white-space:pre-line;margin:0 0 20px;font-size:14px;color:#475569;text-align:${tmpl.body_align}">${body}</p>
     <div style="text-align:center;margin:24px 0">
       <a href="#" style="display:inline-block;background:#1e40af;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none">${buttonLabel}</a>
     </div>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0">
-    <p style="color:#6b7280;font-size:13px;white-space:pre-line;margin:0">${sig}</p>
+    <p style="color:#6b7280;font-size:13px;white-space:pre-line;margin:0;text-align:${tmpl.signature_align}">${sig}</p>
   </div>
   <div style="background:#f9fafb;padding:14px;text-align:center;color:#9ca3af;font-size:12px">
     ${companyName} · Denizcilik Tedarik Platformu
   </div>
 </div>`;
+}
+
+function toAlign(val: string | null | undefined): Align {
+  if (val === "center" || val === "right") return val;
+  return "left";
+}
+
+function AlignButtons({
+  value,
+  onChange,
+}: {
+  value: Align;
+  onChange: (a: Align) => void;
+}) {
+  const options: { val: Align; label: string }[] = [
+    { val: "left", label: "Sol" },
+    { val: "center", label: "Orta" },
+    { val: "right", label: "Sağ" },
+  ];
+  return (
+    <div className="flex gap-1 mt-1.5">
+      {options.map((o) => (
+        <button
+          key={o.val}
+          type="button"
+          onClick={() => onChange(o.val)}
+          className={`text-xs px-3 py-1 rounded border transition-colors ${
+            value === o.val
+              ? "bg-blue-900 text-white border-blue-900"
+              : "border-gray-300 text-gray-500 hover:border-blue-900 hover:text-blue-900"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export default function MailTemplateEditor({ initial }: Props) {
@@ -136,21 +160,25 @@ export default function MailTemplateEditor({ initial }: Props) {
     const map = {} as Record<MailTemplateType, Template>;
     for (const t of TAB_ORDER) {
       const found = initial.find((i) => i.type === t);
-      map[t] = found ?? { ...MAIL_DEFAULTS[t] };
+      map[t] = {
+        ...(found ?? MAIL_DEFAULTS[t]),
+        greeting_align: toAlign(found?.greeting_align),
+        body_align: toAlign(found?.body_align),
+        signature_align: toAlign(found?.signature_align),
+      };
     }
     return map;
   });
   const [saving, setSaving] = useState(false);
 
-  // Refs for cursor-position insertion
   const subjectRef = useRef<HTMLInputElement>(null);
-  const greetingRef = useRef<HTMLInputElement>(null);
+  const greetingRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const signatureRef = useRef<HTMLTextAreaElement>(null);
 
   const current = templates[activeTab];
 
-  function setField(field: keyof Template, value: string) {
+  function setField(field: keyof Template, value: string | Align) {
     setTemplates((prev) => ({
       ...prev,
       [activeTab]: { ...prev[activeTab], [field]: value },
@@ -168,7 +196,6 @@ export default function MailTemplateEditor({ initial }: Props) {
     const end = el.selectionEnd ?? el.value.length;
     const newVal = el.value.slice(0, start) + varName + el.value.slice(end);
     setField(field, newVal);
-    // Restore cursor after state update
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(start + varName.length, start + varName.length);
@@ -185,8 +212,11 @@ export default function MailTemplateEditor({ initial }: Props) {
           type: activeTab,
           subject: current.subject,
           greeting: current.greeting,
+          greeting_align: current.greeting_align,
           body: current.body,
+          body_align: current.body_align,
           signature: current.signature,
+          signature_align: current.signature_align,
         }),
       });
       if (res.ok) {
@@ -205,7 +235,12 @@ export default function MailTemplateEditor({ initial }: Props) {
     if (!confirm("Emin misiniz? Yaptığınız değişiklikler silinecek.")) return;
     setTemplates((prev) => ({
       ...prev,
-      [activeTab]: { ...MAIL_DEFAULTS[activeTab] },
+      [activeTab]: {
+        ...MAIL_DEFAULTS[activeTab],
+        greeting_align: "left",
+        body_align: "left",
+        signature_align: "left",
+      },
     }));
     toast("Varsayılan değerlere döndürüldü.");
   }
@@ -271,18 +306,26 @@ export default function MailTemplateEditor({ initial }: Props) {
               onChange={(e) => setField("subject", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
             />
-            <VarButtons vars={varDefs.subject} field="subject" inputRef={subjectRef as React.RefObject<HTMLInputElement>} />
+            <VarButtons
+              vars={varDefs.subject}
+              field="subject"
+              inputRef={subjectRef as React.RefObject<HTMLInputElement>}
+            />
           </div>
 
           {/* Selamlama */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Selamlama</label>
-            <input
+            <textarea
               ref={greetingRef}
-              type="text"
+              rows={2}
               value={current.greeting}
               onChange={(e) => setField("greeting", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 resize-y"
+            />
+            <AlignButtons
+              value={current.greeting_align}
+              onChange={(a) => setField("greeting_align", a)}
             />
           </div>
 
@@ -296,7 +339,15 @@ export default function MailTemplateEditor({ initial }: Props) {
               onChange={(e) => setField("body", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 resize-y"
             />
-            <VarButtons vars={varDefs.body} field="body" inputRef={bodyRef as React.RefObject<HTMLTextAreaElement>} />
+            <AlignButtons
+              value={current.body_align}
+              onChange={(a) => setField("body_align", a)}
+            />
+            <VarButtons
+              vars={varDefs.body}
+              field="body"
+              inputRef={bodyRef as React.RefObject<HTMLTextAreaElement>}
+            />
           </div>
 
           {/* İmza */}
@@ -309,7 +360,15 @@ export default function MailTemplateEditor({ initial }: Props) {
               onChange={(e) => setField("signature", e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 resize-y"
             />
-            <VarButtons vars={varDefs.signature} field="signature" inputRef={signatureRef as React.RefObject<HTMLTextAreaElement>} />
+            <AlignButtons
+              value={current.signature_align}
+              onChange={(a) => setField("signature_align", a)}
+            />
+            <VarButtons
+              vars={varDefs.signature}
+              field="signature"
+              inputRef={signatureRef as React.RefObject<HTMLTextAreaElement>}
+            />
           </div>
 
           {/* Butonlar */}
