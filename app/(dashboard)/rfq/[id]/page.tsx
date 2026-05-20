@@ -28,7 +28,7 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
 
   const { data: recipients } = await admin
     .from("rfq_recipients")
-    .select("id, status, magic_token, sent_at, responded_at, suppliers(id, company_name, email, contact_name)")
+    .select("id, status, magic_token, sent_at, responded_at, awarded_at, order_id, suppliers(id, company_name, email, contact_name)")
     .eq("rfq_id", rfq.id);
 
   const { data: quotes } = await admin

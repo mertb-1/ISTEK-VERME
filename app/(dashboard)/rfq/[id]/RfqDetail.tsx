@@ -1,13 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, Mail, XCircle, AlertTriangle, Trophy, Package } from "lucide-react";
+import { CheckCircle, Clock, Mail, XCircle, AlertTriangle, Trophy, Package, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 type RfqItem = { id: string; product_name: string; brand: string; quantity: number; unit: string };
 type QuoteItem = { rfq_item_id: string; unit_price: number; total_price: number; offered_brand: string; in_stock: boolean; notes: string };
 type Quote = { id: string; total_amount: number; delivery_time: string; payment_terms: string; supplier_notes: string; quote_items: QuoteItem[] };
 type Supplier = { id: string; company_name: string; email: string; contact_name: string };
-type Recipient = { id: string; status: string; magic_token: string; sent_at: string; responded_at: string; suppliers: Supplier | Supplier[]; quotes: Quote[] };
+type Recipient = {
+  id: string;
+  status: string;
+  magic_token: string;
+  sent_at: string;
+  responded_at: string;
+  awarded_at: string | null;
+  order_id: string | null;
+  suppliers: Supplier | Supplier[];
+  quotes: Quote[];
+};
 
 function getSupplier(r: Recipient): Supplier {
   return Array.isArray(r.suppliers) ? r.suppliers[0] : r.suppliers;
@@ -34,12 +47,26 @@ export default function RfqDetail({
   items,
   recipients,
 }: {
-  rfq: { id: string; title: string; status: string; deadline: string; notes: string; created_at: string };
+  rfq: { id: string; title: string; status: string; deadline: string; notes: string; created_at: string; awarded_recipient_id: string | null };
   items: RfqItem[];
   recipients: Recipient[];
 }) {
   const respondedRecipients = recipients.filter((r) => r.quotes && r.quotes.length > 0);
   const pendingRecipients = recipients.filter((r) => !r.quotes || r.quotes.length === 0);
+
+  // Award state — başlangıç değeri veritabanından gelen rfq.awarded_recipient_id
+  const [awardedRecipientId, setAwardedRecipientId] = useState<string | null>(rfq.awarded_recipient_id);
+  const [awardedOrderId, setAwardedOrderId] = useState<string | null>(
+    recipients.find((r) => r.order_id)?.order_id ?? null
+  );
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogRecipient, setDialogRecipient] = useState<Recipient | null>(null);
+  const [poNote, setPoNote] = useState("");
+  const [expectedDelivery, setExpectedDelivery] = useState("");
+  const [awarding, setAwarding] = useState(false);
+  const [awardError, setAwardError] = useState("");
 
   const getPriceForItem = (recipient: Recipient, itemId: string): QuoteItem | undefined => {
     const quote = recipient.quotes?.[0];
@@ -69,6 +96,52 @@ export default function RfqDetail({
   const isOpen = rfq.status === "open";
   const deadline = rfq.deadline ? new Date(rfq.deadline) : null;
   const isOverdue = deadline && deadline < new Date() && isOpen;
+
+  function openAwardDialog(r: Recipient) {
+    setDialogRecipient(r);
+    setPoNote("");
+    setExpectedDelivery("");
+    setAwardError("");
+    setDialogOpen(true);
+  }
+
+  async function handleConfirmAward() {
+    if (!dialogRecipient) return;
+    const quote = dialogRecipient.quotes?.[0];
+    if (!quote) return;
+
+    setAwarding(true);
+    setAwardError("");
+
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rfq_id: rfq.id,
+          rfq_recipient_id: dialogRecipient.id,
+          quote_id: quote.id,
+          confirmation_note: poNote || undefined,
+          expected_delivery: expectedDelivery || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAwardError(data.error ?? "Sipariş oluşturulamadı.");
+        return;
+      }
+
+      setAwardedRecipientId(dialogRecipient.id);
+      setAwardedOrderId(data.order_id);
+      setDialogOpen(false);
+    } catch {
+      setAwardError("Bağlantı hatası. Lütfen tekrar deneyin.");
+    } finally {
+      setAwarding(false);
+    }
+  }
 
   return (
     <div className="p-8 max-w-full">
@@ -124,6 +197,38 @@ export default function RfqDetail({
           </div>
         </div>
       </div>
+
+      {/* Award success banner */}
+      {awardedRecipientId && awardedOrderId && (() => {
+        const awardedR = recipients.find((r) => r.id === awardedRecipientId);
+        const awardedSupplier = awardedR ? getSupplier(awardedR) : null;
+        return (
+          <div
+            className="flex items-center justify-between gap-4 px-5 py-4 rounded-xl mb-6"
+            style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}
+          >
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#1a7a3a" }} />
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "#1a7a3a" }}>
+                  Sipariş oluşturuldu — {awardedSupplier?.company_name}
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: "#1a7a3a", opacity: 0.75 }}>
+                  Teklif talebi kapatıldı. Sipariş detaylarını görüntüleyebilirsiniz.
+                </div>
+              </div>
+            </div>
+            <Link
+              href={`/orders/${awardedOrderId}`}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg flex-shrink-0 transition-colors"
+              style={{ background: "#1a7a3a", color: "#fff" }}
+            >
+              Siparişi Görüntüle
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        );
+      })()}
 
       {/* Tedarikçi durumları — mini satır */}
       {recipients.length > 0 && (
@@ -188,15 +293,25 @@ export default function RfqDetail({
                   {respondedRecipients.map((r) => {
                     const s = getSupplier(r);
                     const isOverallCheapest = cheapestSupplierRecipient?.id === r.id;
+                    const isAwarded = awardedRecipientId === r.id;
                     return (
-                      <th key={r.id} className="text-center px-4 py-4 min-w-[180px]" style={{ borderRight: "1px solid #e6ddd4" }}>
+                      <th key={r.id} className="text-center px-4 py-4 min-w-[180px]" style={{
+                        borderRight: "1px solid #e6ddd4",
+                        background: isAwarded ? "#edf8f1" : undefined,
+                      }}>
                         <div className="flex flex-col items-center gap-2">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
                               {getInitials(s?.company_name ?? "?")}
                             </div>
                             <span className="font-semibold text-sm" style={{ color: "#111" }}>{s?.company_name}</span>
-                            {isOverallCheapest && respondedRecipients.length > 1 && (
+                            {isAwarded && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: "#edf8f1", color: "#1a7a3a" }}>
+                                <CheckCircle className="w-3 h-3" />
+                                Seçildi
+                              </span>
+                            )}
+                            {!isAwarded && isOverallCheapest && respondedRecipients.length > 1 && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: "#fef5e4", color: "#a06a00" }}>
                                 <Trophy className="w-3 h-3" />
                                 En ucuz
@@ -257,6 +372,7 @@ export default function RfqDetail({
                         const brandMatch = !qi?.offered_brand || !item.brand ||
                           qi.offered_brand.toLowerCase() === item.brand.toLowerCase();
                         const brandMismatch = qi?.offered_brand && item.brand && !brandMatch;
+                        const isAwarded = awardedRecipientId === r.id;
 
                         return (
                           <td
@@ -264,7 +380,8 @@ export default function RfqDetail({
                             className="px-4 py-4 text-center"
                             style={{
                               borderRight: "1px solid #f0e8e0",
-                              background: isCheapest ? "#edf8f1" : "transparent",
+                              background: isAwarded ? "#edf8f1" : isCheapest ? "#edf8f1" : "transparent",
+                              opacity: awardedRecipientId && !isAwarded ? 0.45 : 1,
                             }}
                           >
                             {qi ? (
@@ -323,12 +440,17 @@ export default function RfqDetail({
                   {respondedRecipients.map((r) => {
                     const total = r.quotes?.[0]?.total_amount;
                     const isOverallCheapest = cheapestSupplierRecipient?.id === r.id && respondedRecipients.length > 1;
+                    const isAwarded = awardedRecipientId === r.id;
                     return (
-                      <td key={r.id} className="px-4 py-4 text-center" style={{ borderRight: "1px solid #f0e8e0", background: isOverallCheapest ? "#edf8f1" : "transparent" }}>
+                      <td key={r.id} className="px-4 py-4 text-center" style={{
+                        borderRight: "1px solid #f0e8e0",
+                        background: isAwarded ? "#edf8f1" : isOverallCheapest ? "#edf8f1" : "transparent",
+                        opacity: awardedRecipientId && !isAwarded ? 0.45 : 1,
+                      }}>
                         <div className="text-xl font-bold tabular-nums" style={{ color: isOverallCheapest ? "#1a7a3a" : "#111" }}>
                           {formatPrice(total)}
                         </div>
-                        {isOverallCheapest && (
+                        {isOverallCheapest && !isAwarded && (
                           <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded" style={{ background: "#fef5e4", color: "#a06a00" }}>
                             <Trophy className="w-3 h-3" />
                             En ucuz
@@ -391,14 +513,38 @@ export default function RfqDetail({
           {/* Select supplier row */}
           <div className="px-6 py-4" style={{ borderTop: "1px solid #e6ddd4", background: "#fff" }}>
             <div className="flex items-center gap-3 overflow-x-auto pb-1">
-              <span className="text-sm font-medium flex-shrink-0" style={{ color: "#7a6e67" }}>Tedarikçi seç:</span>
+              <span className="text-sm font-medium flex-shrink-0" style={{ color: "#7a6e67" }}>
+                {awardedRecipientId ? "Sipariş verildi:" : "Tedarikçi seç:"}
+              </span>
               {respondedRecipients.map((r) => {
                 const s = getSupplier(r);
                 const isOverallCheapest = cheapestSupplierRecipient?.id === r.id && respondedRecipients.length > 1;
+                const isAwarded = awardedRecipientId === r.id;
+                const isDisabled = !!awardedRecipientId;
+
+                if (isAwarded) {
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/orders/${awardedOrderId}`}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 transition-colors"
+                      style={{ background: "#1a7a3a", color: "#fff", border: "1px solid #1a7a3a" }}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      {s?.company_name}
+                      <span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.7)" }}>
+                        {formatPrice(r.quotes?.[0]?.total_amount)}
+                      </span>
+                    </Link>
+                  );
+                }
+
                 return (
                   <button
                     key={r.id}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex-shrink-0"
+                    onClick={() => openAwardDialog(r)}
+                    disabled={isDisabled}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                     style={isOverallCheapest
                       ? { background: "#111", color: "#fff", borderColor: "#111" }
                       : { background: "#fff", color: "#111", borderColor: "#e6ddd4" }}
@@ -415,6 +561,101 @@ export default function RfqDetail({
           </div>
         </div>
       )}
+
+      {/* Award confirmation dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!awarding) setDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Sipariş Oluştur</DialogTitle>
+          </DialogHeader>
+
+          {dialogRecipient && (() => {
+            const s = getSupplier(dialogRecipient);
+            const q = dialogRecipient.quotes?.[0];
+            return (
+              <div className="space-y-4 py-2">
+                {/* Özet */}
+                <div className="rounded-lg px-4 py-3 space-y-2 text-sm" style={{ background: "#f5f0eb" }}>
+                  <div className="flex justify-between">
+                    <span style={{ color: "#7a6e67" }}>Tedarikçi</span>
+                    <span className="font-semibold" style={{ color: "#111" }}>{s?.company_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: "#7a6e67" }}>Teklif Tutarı</span>
+                    <span className="font-bold" style={{ color: "#111" }}>{formatPrice(q?.total_amount)}</span>
+                  </div>
+                  {q?.delivery_time && (
+                    <div className="flex justify-between">
+                      <span style={{ color: "#7a6e67" }}>Teslimat</span>
+                      <span style={{ color: "#111" }}>{q.delivery_time}</span>
+                    </div>
+                  )}
+                  {q?.payment_terms && (
+                    <div className="flex justify-between">
+                      <span style={{ color: "#7a6e67" }}>Ödeme</span>
+                      <span style={{ color: "#111" }}>{q.payment_terms}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Beklenen teslimat */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium" style={{ color: "#111" }}>
+                    Beklenen Teslimat Tarihi <span style={{ color: "#b0a49e" }}>(opsiyonel)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={expectedDelivery}
+                    onChange={(e) => setExpectedDelivery(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ borderColor: "#e6ddd4" }}
+                  />
+                </div>
+
+                {/* PO notu */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium" style={{ color: "#111" }}>
+                    PO Notu <span style={{ color: "#b0a49e" }}>(opsiyonel)</span>
+                  </label>
+                  <textarea
+                    value={poNote}
+                    onChange={(e) => setPoNote(e.target.value)}
+                    placeholder="Tedarikçiye iletilecek sipariş notu..."
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    style={{ borderColor: "#e6ddd4" }}
+                  />
+                </div>
+
+                {awardError && (
+                  <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "#fdf0ee", color: "#8b3a2a" }}>
+                    {awardError}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={awarding}
+            >
+              İptal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmAward}
+              disabled={awarding}
+              style={{ background: "#111", color: "#fff" }}
+            >
+              {awarding ? "Oluşturuluyor..." : "Sipariş Oluştur →"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

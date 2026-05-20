@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Giriş gerektiren sayfalar
-  const protectedPaths = ["/dashboard", "/rfq", "/suppliers", "/profile"];
+  const protectedPaths = ["/dashboard", "/rfq", "/suppliers", "/profile", "/orders"];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (isProtected && !user) {
