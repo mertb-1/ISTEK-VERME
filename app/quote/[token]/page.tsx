@@ -10,7 +10,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
     .from("rfq_recipients")
     .select(`
       id, status, magic_token,
-      rfqs(id, title, notes, deadline, buyers(company_name, company_logo_url)),
+      rfqs!rfq_recipients_rfq_id_fkey(id, title, notes, deadline, buyers(company_name, company_logo_url)),
       suppliers(company_name, contact_name),
       quotes(id)
     `)

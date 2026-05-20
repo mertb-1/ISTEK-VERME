@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   // Token + recipient_id birlikte doğrula (ikisi eşleşmeli)
   const { data: recipient } = await supabase
     .from("rfq_recipients")
-    .select("id, magic_token, status, rfqs(deadline)")
+    .select("id, magic_token, status, rfqs!rfq_recipients_rfq_id_fkey(deadline)")
     .eq("magic_token", token)
     .eq("id", recipient_id)
     .single();
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     };
     const { data: recipientFull } = await supabase
       .from("rfq_recipients")
-      .select("rfq_id, suppliers(company_name), rfqs(id, buyer_id, buyers(email, company_name, full_name))")
+      .select("rfq_id, suppliers(company_name), rfqs!rfq_recipients_rfq_id_fkey(id, buyer_id, buyers(email, company_name, full_name))")
       .eq("id", recipient_id)
       .single() as { data: RecipientWithRfq | null };
 
