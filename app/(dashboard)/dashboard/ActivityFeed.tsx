@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileText, Send, Inbox, Award, CheckCircle, XCircle } from "lucide-react";
+import { FileText, Send, Inbox, Award, CheckCircle, XCircle, Activity } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 
 export type ActivityItem = {
   type: "rfq_created" | "rfq_sent" | "quote_received" | "order_created" | "order_completed" | "order_cancelled";
@@ -9,12 +10,12 @@ export type ActivityItem = {
 };
 
 const CONFIG: Record<ActivityItem["type"], { icon: React.ElementType; color: string; bg: string }> = {
-  rfq_created:      { icon: FileText,    color: "#7a6e67", bg: "#f5f0eb" },
-  rfq_sent:         { icon: Send,        color: "#a06a00", bg: "#fef5e4" },
-  quote_received:   { icon: Inbox,       color: "#1a7a3a", bg: "#edf8f1" },
-  order_created:    { icon: Award,       color: "#1a7a3a", bg: "#edf8f1" },
-  order_completed:  { icon: CheckCircle, color: "#1a7a3a", bg: "#edf8f1" },
-  order_cancelled:  { icon: XCircle,     color: "#8b3a2a", bg: "#fdf0ee" },
+  rfq_created:     { icon: FileText,    color: "#7a6e67", bg: "#f5f0eb" },
+  rfq_sent:        { icon: Send,        color: "#a06a00", bg: "#fef5e4" },
+  quote_received:  { icon: Inbox,       color: "#1a7a3a", bg: "#edf8f1" },
+  order_created:   { icon: Award,       color: "#1a7a3a", bg: "#edf8f1" },
+  order_completed: { icon: CheckCircle, color: "#1a7a3a", bg: "#edf8f1" },
+  order_cancelled: { icon: XCircle,     color: "#8b3a2a", bg: "#fdf0ee" },
 };
 
 function timeAgo(ts: string) {
@@ -31,39 +32,52 @@ function timeAgo(ts: string) {
 
 export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-      <div className="px-6 py-4" style={{ borderBottom: "1px solid #e6ddd4" }}>
-        <h2 className="text-sm font-semibold" style={{ color: "#111" }}>SON AKTİVİTELER</h2>
+    <div className="rounded-xl overflow-hidden h-full" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+      <div className="px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+        <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>SON AKTİVİTELER</h2>
       </div>
 
       {items.length === 0 ? (
-        <div className="px-6 py-12 text-center">
-          <p className="text-sm" style={{ color: "#7a6e67" }}>Henüz aktivite yok.</p>
-        </div>
+        <EmptyState
+          icon={Activity}
+          title="Henüz aktivite yok"
+          description="Teklif talepleri oluşturdukça aktiviteler burada görünür."
+          className="py-12"
+        />
       ) : (
-        <ul className="divide-y" style={{ borderColor: "#f0e8e0" }}>
+        <ul>
           {items.map((item, idx) => {
             const cfg = CONFIG[item.type];
             const Icon = cfg.icon;
+            const isLast = idx === items.length - 1;
+
             const inner = (
-              <div className="flex items-start gap-4 px-6 py-4">
+              <div className="flex items-start gap-3 px-5 py-3.5">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
                   style={{ background: cfg.bg }}
                 >
-                  <Icon className="w-4 h-4" style={{ color: cfg.color }} />
+                  <Icon className="w-3.5 h-3.5" style={{ color: cfg.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm leading-snug" style={{ color: "#111" }}>{item.message}</p>
+                  <p className="text-xs leading-snug" style={{ color: "#111" }}>{item.message}</p>
                   <p className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>{timeAgo(item.timestamp)}</p>
                 </div>
               </div>
             );
 
             return (
-              <li key={idx}>
+              <li
+                key={idx}
+                style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}
+              >
                 {item.link ? (
-                  <Link href={item.link} className="block transition-colors hover:bg-amber-50">
+                  <Link
+                    href={item.link}
+                    className="block transition-colors"
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#fef5e4"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = ""; }}
+                  >
                     {inner}
                   </Link>
                 ) : (
