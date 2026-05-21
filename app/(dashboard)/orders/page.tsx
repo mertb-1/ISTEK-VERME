@@ -10,15 +10,18 @@ export default async function OrdersPage() {
 
   const admin = createAdminClient();
 
-  const { data: orders } = await admin
+  // Explicit FK hints required — orders↔rfq_recipients and orders↔rfqs both have circular FKs
+  const { data: orders, error: ordersErr } = await admin
     .from("orders")
     .select(`
       id, status, confirmed_amount, expected_delivery, created_at, rfq_id, rfq_recipient_id,
-      rfqs(id, title),
-      rfq_recipients(suppliers(company_name))
+      rfqs!orders_rfq_id_fkey(id, title),
+      rfq_recipients!orders_rfq_recipient_id_fkey(suppliers(company_name))
     `)
     .eq("buyer_id", user!.id)
     .order("created_at", { ascending: false });
+
+  if (ordersErr) console.error("orders fetch error:", ordersErr.code, ordersErr.message);
 
   const rows: OrderRow[] = (orders ?? []).map((o) => {
     const rfq = (Array.isArray(o.rfqs) ? o.rfqs[0] : o.rfqs) as { id: string; title: string } | null;
