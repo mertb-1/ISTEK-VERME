@@ -12,7 +12,7 @@ export default async function RfqListPage() {
   const admin = createAdminClient();
   const { data: rfqs, error: rfqsErr } = await admin
     .from("rfqs")
-    .select(`id, title, status, deadline, created_at, awarded_recipient_id, rfq_recipients(count), rfq_items(count)`)
+    .select(`id, title, status, deadline, created_at, awarded_recipient_id, rfq_recipients!rfq_recipients_rfq_id_fkey(count), rfq_items!rfq_items_rfq_id_fkey(count)`)
     .eq("buyer_id", user!.id)
     .order("created_at", { ascending: false });
 
