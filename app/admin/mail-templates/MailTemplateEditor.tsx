@@ -28,9 +28,10 @@ const TAB_LABELS: Record<MailTemplateType, string> = {
   supplier_rfq: "Tedarikçiye Teklif Maili",
   buyer_notification: "Alıcıya Bildirim Maili",
   approval: "Kayıt Onay Maili",
+  supplier_order_notification: "Tedarikçiye Sipariş Bildirimi",
 };
 
-const TAB_ORDER: MailTemplateType[] = ["supplier_rfq", "buyer_notification", "approval"];
+const TAB_ORDER: MailTemplateType[] = ["supplier_rfq", "buyer_notification", "approval", "supplier_order_notification"];
 
 const VARS: Record<MailTemplateType, { subject: string[]; body: string[]; signature: string[] }> = {
   supplier_rfq: {
@@ -51,6 +52,15 @@ const VARS: Record<MailTemplateType, { subject: string[]; body: string[]; signat
     body: ["{{alici_adi}}", "{{firma_adi}}"],
     signature: ["{{firma_adi}}"],
   },
+  supplier_order_notification: {
+    subject: ["{{firma_adi}}", "{{siparis_no}}", "{{teklif_no}}"],
+    body: [
+      "{{firma_adi}}", "{{tedarikci_adi}}", "{{teklif_no}}", "{{siparis_no}}",
+      "{{siparis_tutari}}", "{{teslim_tarihi}}", "{{siparis_notu}}",
+      "{{firma_telefon}}", "{{firma_mail}}",
+    ],
+    signature: ["{{firma_adi}}", "{{firma_telefon}}", "{{firma_mail}}"],
+  },
 };
 
 const PREVIEW_DATA: Record<string, string> = {
@@ -66,6 +76,11 @@ const PREVIEW_DATA: Record<string, string> = {
   tedarikci_adi: "Kamarin Ship Supply",
   cevap_tarihi: "19.05.2026",
   alici_adi: "Umut CADIRCI",
+  siparis_no: "ORD-2026-001",
+  siparis_tutari: "12.500,00 USD",
+  teslim_tarihi: "05.06.2026",
+  siparis_notu: "Lütfen teslimat öncesinde iletişime geçin.",
+  teklif_linki: "#",
 };
 
 function replacePreview(text: string): string {
@@ -95,6 +110,8 @@ function buildPreviewHtml(tmpl: Template, type: MailTemplateType): string {
       ? "Teklifleri Karşılaştır →"
       : type === "approval"
       ? "Giriş Yap →"
+      : type === "supplier_order_notification"
+      ? "Siparişi Görüntüle →"
       : "Teklif Ver →";
 
   return `<div style="max-width:560px;margin:0 auto;font-family:Arial,sans-serif;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">

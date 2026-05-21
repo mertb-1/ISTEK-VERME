@@ -102,6 +102,7 @@ export function buildMailHtml({
   let buttonLabel = "Teklif Ver &rarr;";
   if (type === "buyer_notification") buttonLabel = "Teklifleri Karşılaştır &rarr;";
   if (type === "approval") buttonLabel = "Giriş Yap &rarr;";
+  if (type === "supplier_order_notification") buttonLabel = "Siparişi Görüntüle &rarr;";
 
   return `<!DOCTYPE html>
 <html lang="tr">

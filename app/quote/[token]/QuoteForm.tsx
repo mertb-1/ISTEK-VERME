@@ -93,11 +93,15 @@ export default function QuoteForm({
         total_amount: totalAmount,
         items: quoteItems
           .filter((qi) => qi.unit_price && parseFloat(qi.unit_price) > 0)
-          .map((qi) => ({
-            ...qi,
-            unit_price: parseFloat(qi.unit_price),
-            total_price: parseFloat(qi.unit_price) * (items.find((i) => i.id === qi.rfq_item_id)?.quantity || 1),
-          })),
+          .map((qi) => {
+            const unitPrice = Math.round(parseFloat(qi.unit_price) * 1e6) / 1e6;
+            const qty = items.find((i) => i.id === qi.rfq_item_id)?.quantity || 1;
+            return {
+              ...qi,
+              unit_price: unitPrice,
+              total_price: Math.round(unitPrice * qty * 1e6) / 1e6,
+            };
+          }),
       }),
     });
 
@@ -206,7 +210,7 @@ export default function QuoteForm({
                           <input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="any"
                             value={quoteItems[idx].unit_price}
                             onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
                             placeholder="0.00"
@@ -273,7 +277,7 @@ export default function QuoteForm({
                       <input
                         type="number"
                         min="0"
-                        step="0.01"
+                        step="any"
                         value={quoteItems[idx].unit_price}
                         onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
                         placeholder="0.00"

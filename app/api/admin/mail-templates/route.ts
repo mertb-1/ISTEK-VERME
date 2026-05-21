@@ -10,6 +10,7 @@ const VALID_TYPES: MailTemplateType[] = [
   "supplier_rfq",
   "buyer_notification",
   "approval",
+  "supplier_order_notification",
 ];
 
 async function requireAdmin() {

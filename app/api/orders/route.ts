@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMailTemplate, replaceVars, buildMailHtml, sendSimpleMail, esc } from "@/lib/mail";
+import { MAIL_DEFAULTS } from "@/lib/mail-defaults";
+import { APP_NAME } from "@/lib/config";
 
 function isUuid(val: unknown): val is string {
   return (
@@ -142,6 +145,89 @@ export async function POST(req: NextRequest) {
 
   if (rfqErr) {
     console.error("rfqs update error:", rfqErr.code);
+  }
+
+  // Tedarikçiye sipariş bildirim maili gönder — hata siparişi etkilemez
+  try {
+    const [supplierRow, buyerRow] = await Promise.all([
+      admin
+        .from("rfq_recipients")
+        .select("magic_token, supplier_id, suppliers(email, contact_name, company_name)")
+        .eq("id", rfq_recipient_id)
+        .single(),
+      admin
+        .from("buyers")
+        .select("company_name, company_phone, company_email, company_logo_url")
+        .eq("id", user.id)
+        .single(),
+    ]);
+
+    const supplierData = supplierRow.data;
+    const buyerData = buyerRow.data;
+
+    const rawSupplier = supplierData?.suppliers;
+    const supplierInfo = Array.isArray(rawSupplier) ? rawSupplier[0] : rawSupplier;
+    const supplierEmail = supplierInfo?.email as string | undefined;
+
+    if (supplierEmail && buyerData) {
+      const magicLink = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/quote/${supplierData?.magic_token}`;
+
+      const deliveryDate = typeof expected_delivery === "string" && expected_delivery
+        ? new Date(expected_delivery).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
+        : "Belirtilmemiş";
+
+      const amountFormatted = quote.total_amount != null
+        ? Number(quote.total_amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "—";
+
+      const orderShort = order.id.slice(0, 8).toUpperCase();
+      const rfqShort = rfq_id.slice(0, 8).toUpperCase();
+
+      const vars: Record<string, string> = {
+        firma_adi: buyerData.company_name ?? "",
+        tedarikci_adi: (supplierInfo?.contact_name as string | undefined) ?? (supplierInfo?.company_name as string | undefined) ?? "",
+        teklif_no: `RFQ-${rfqShort}`,
+        siparis_no: `ORD-${orderShort}`,
+        siparis_tutari: amountFormatted,
+        teslim_tarihi: deliveryDate,
+        siparis_notu: typeof buyer_note === "string" && buyer_note ? buyer_note.slice(0, 500) : "",
+        teklif_linki: magicLink,
+        firma_telefon: buyerData.company_phone ?? "",
+        firma_mail: buyerData.company_email ?? "",
+      };
+
+      const tpl = await getMailTemplate("supplier_order_notification");
+      const defaults = MAIL_DEFAULTS.supplier_order_notification;
+
+      const subject = replaceVars(tpl?.subject ?? defaults.subject, vars);
+      const greeting = replaceVars(tpl?.greeting ?? defaults.greeting, vars);
+      const body = replaceVars(tpl?.body ?? defaults.body, vars);
+      const signature = replaceVars(tpl?.signature ?? defaults.signature, vars);
+
+      const html = buildMailHtml({
+        greeting,
+        greetingAlign: tpl?.greeting_align ?? "left",
+        body,
+        bodyAlign: tpl?.body_align ?? "left",
+        signature,
+        signatureAlign: tpl?.signature_align ?? "left",
+        logoUrl: buyerData.company_logo_url ?? null,
+        companyName: buyerData.company_name ?? APP_NAME,
+        type: "supplier_order_notification",
+        actionUrl: magicLink,
+        appName: APP_NAME,
+      });
+
+      await sendSimpleMail({
+        to: supplierEmail,
+        subject,
+        html,
+        fromName: `${esc(buyerData.company_name ?? APP_NAME)} via ${APP_NAME}`,
+        replyTo: buyerData.company_email ?? undefined,
+      });
+    }
+  } catch (mailErr) {
+    console.error("supplier_order_notification mail error:", mailErr);
   }
 
   return NextResponse.json({ order_id: order.id });
