@@ -173,23 +173,31 @@ export default function RfqDetail({
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: isOpen ? "#c0392b" : "#aaa" }} />
                 {isOpen ? "Açık" : "Kapalı"}
               </span>
-              {isOverdue && (
-                <span className="flex items-center gap-1 text-xs font-medium" style={{ color: "#c0392b" }}>
-                  <AlertTriangle className="w-3 h-3" /> Süresi geçti
-                </span>
-              )}
             </div>
             <h1 className="font-display text-4xl leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}>
               {rfq.title}
             </h1>
-            <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "#7a6e67" }}>
-              <span>Oluşturuldu: {new Date(rfq.created_at).toLocaleDateString("tr-TR")}</span>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                Oluşturuldu: {new Date(rfq.created_at).toLocaleDateString("tr-TR")}
+              </span>
               {deadline && (
-                <span style={{ color: isOverdue ? "#c0392b" : "#7a6e67" }}>
+                <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{
+                  background: isOverdue ? "#fdf0ee" : "#f5f0eb",
+                  color: isOverdue ? "#c0392b" : "#7a6e67",
+                }}>
+                  {isOverdue && <AlertTriangle className="w-3 h-3" />}
                   Son tarih: {deadline.toLocaleDateString("tr-TR")}
                 </span>
               )}
-              <span>{items.length} kalem · {recipients.length} tedarikçi</span>
+              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                <Package className="w-3 h-3" />
+                {items.length} kalem
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                <Mail className="w-3 h-3" />
+                {recipients.length} tedarikçi
+              </span>
             </div>
             {rfq.notes && (
               <p className="text-sm mt-3 px-3 py-2 rounded-lg inline-block" style={{ background: "#f5f0eb", color: "#7a6e67" }}>{rfq.notes}</p>
@@ -295,35 +303,37 @@ export default function RfqDetail({
                     const isOverallCheapest = cheapestSupplierRecipient?.id === r.id;
                     const isAwarded = awardedRecipientId === r.id;
                     return (
-                      <th key={r.id} className="text-center px-4 py-4 min-w-[180px]" style={{
+                      <th key={r.id} className="text-center px-4 py-3 min-w-[180px]" style={{
                         borderRight: "1px solid #e6ddd4",
                         background: isAwarded ? "#edf8f1" : undefined,
                       }}>
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
                               {getInitials(s?.company_name ?? "?")}
                             </div>
                             <span className="font-semibold text-sm" style={{ color: "#111" }}>{s?.company_name}</span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-wrap justify-center">
                             {isAwarded && (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: "#edf8f1", color: "#1a7a3a" }}>
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#edf8f1", color: "#1a7a3a" }}>
                                 <CheckCircle className="w-3 h-3" />
                                 Seçildi
                               </span>
                             )}
                             {!isAwarded && isOverallCheapest && respondedRecipients.length > 1 && (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded" style={{ background: "#fef5e4", color: "#a06a00" }}>
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#fef5e4", color: "#a06a00" }}>
                                 <Trophy className="w-3 h-3" />
                                 En ucuz
                               </span>
                             )}
+                            {r.quotes?.[0]?.delivery_time && (
+                              <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>{r.quotes[0].delivery_time}</span>
+                            )}
+                            {r.quotes?.[0]?.payment_terms && (
+                              <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>{r.quotes[0].payment_terms}</span>
+                            )}
                           </div>
-                          {r.quotes?.[0]?.delivery_time && (
-                            <span className="text-xs font-normal" style={{ color: "#7a6e67" }}>{r.quotes[0].delivery_time}</span>
-                          )}
-                          {r.quotes?.[0]?.payment_terms && (
-                            <span className="text-xs font-normal" style={{ color: "#7a6e67" }}>{r.quotes[0].payment_terms}</span>
-                          )}
                         </div>
                       </th>
                     );
@@ -331,13 +341,13 @@ export default function RfqDetail({
                   {pendingRecipients.map((r) => {
                     const s = getSupplier(r);
                     return (
-                      <th key={r.id} className="text-center px-4 py-4 min-w-[160px] opacity-40" style={{ borderRight: "1px solid #e6ddd4" }}>
+                      <th key={r.id} className="text-center px-4 py-3 min-w-[140px]" style={{ borderRight: "1px solid #e6ddd4", opacity: 0.4 }}>
                         <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: "#f5f0eb", color: "#b0a49e" }}>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: "#f5f0eb", color: "#b0a49e" }}>
                             {getInitials(s?.company_name ?? "?")}
                           </div>
                           <span className="font-medium text-sm" style={{ color: "#7a6e67" }}>{s?.company_name}</span>
-                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
                             <Clock className="w-3 h-3" />
                             Bekleniyor
                           </span>
@@ -511,7 +521,7 @@ export default function RfqDetail({
           )}
 
           {/* Select supplier row */}
-          <div className="px-6 py-4" style={{ borderTop: "1px solid #e6ddd4", background: "#fff" }}>
+          <div className="px-6 py-5" style={{ borderTop: "2px solid #e6ddd4", background: "#faf4ee" }}>
             <div className="flex items-center gap-3 overflow-x-auto pb-1">
               <span className="text-sm font-medium flex-shrink-0" style={{ color: "#7a6e67" }}>
                 {awardedRecipientId ? "Sipariş verildi:" : "Tedarikçi seç:"}
@@ -607,7 +617,7 @@ export default function RfqDetail({
                     type="date"
                     value={expectedDelivery}
                     onChange={(e) => setExpectedDelivery(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8]"
                     style={{ borderColor: "#e6ddd4" }}
                   />
                 </div>
@@ -622,7 +632,7 @@ export default function RfqDetail({
                     onChange={(e) => setPoNote(e.target.value)}
                     placeholder="Tedarikçiye iletilecek sipariş notu..."
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8] resize-none"
                     style={{ borderColor: "#e6ddd4" }}
                   />
                 </div>
