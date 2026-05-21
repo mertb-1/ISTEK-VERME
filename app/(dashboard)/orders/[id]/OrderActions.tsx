@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 export default function OrderActions({ orderId, status }: { orderId: string; status: string }) {
   const router = useRouter();
@@ -39,24 +40,42 @@ export default function OrderActions({ orderId, status }: { orderId: string; sta
   }
 
   return (
-    <div className="flex items-center gap-3 mt-6">
+    <div
+      className="rounded-xl px-5 py-4 mb-6 flex items-center gap-3"
+      style={{ background: "#fff", border: "1px solid #e6ddd4" }}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wider flex-1" style={{ color: "#b0a49e" }}>
+        İşlemler
+      </p>
+
       {canComplete && (
         <button
           disabled={loading}
           onClick={() => updateStatus("completed")}
-          className="text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg transition-opacity disabled:opacity-50 hover:opacity-90"
           style={{ background: "#1a7a3a", color: "#fff" }}
         >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <CheckCircle className="w-4 h-4" />
+          )}
           Tamamlandı İşaretle
         </button>
       )}
+
       {canCancel && (
         <button
           disabled={loading}
           onClick={handleCancel}
-          className="text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg transition-opacity disabled:opacity-50 hover:opacity-90"
           style={{ background: "#fdf0ee", color: "#8b3a2a", border: "1px solid #f5d0c8" }}
         >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <XCircle className="w-4 h-4" />
+          )}
           İptal Et
         </button>
       )}
