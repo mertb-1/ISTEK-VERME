@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { ArrowRight, AlertTriangle } from "lucide-react";
+import ActivityFeed, { ActivityItem } from "./ActivityFeed";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -18,9 +19,56 @@ export default async function DashboardPage() {
     ]);
 
   const rfqIdList = (buyerRfqIds ?? []).map((r: { id: string }) => r.id);
-  const { count: awaitingCount } = rfqIdList.length > 0
-    ? await admin.from("rfq_recipients").select("id", { count: "exact", head: true }).eq("status", "sent").in("rfq_id", rfqIdList)
-    : { count: 0 };
+
+  const [
+    { count: awaitingCount },
+    { data: activityRfqs },
+    activityRecipientsResult,
+    { data: activityOrders },
+  ] = await Promise.all([
+    rfqIdList.length > 0
+      ? admin.from("rfq_recipients").select("id", { count: "exact", head: true }).eq("status", "sent").in("rfq_id", rfqIdList)
+      : Promise.resolve({ count: 0 }),
+    supabase.from("rfqs").select("id, title, created_at").eq("buyer_id", user!.id).order("created_at", { ascending: false }).limit(30),
+    rfqIdList.length > 0
+      ? admin.from("rfq_recipients").select("rfq_id, sent_at, responded_at, awarded_at, suppliers(company_name)").in("rfq_id", rfqIdList)
+      : Promise.resolve({ data: [] as { rfq_id: string; sent_at: string | null; responded_at: string | null; awarded_at: string | null; suppliers: unknown }[] }),
+    supabase.from("orders").select("id, rfq_id, completed_at, cancelled_at").eq("buyer_id", user!.id),
+  ]);
+
+  // Build activity feed
+  const rfqTitleMap: Record<string, string> = {};
+  for (const r of activityRfqs ?? []) rfqTitleMap[r.id] = r.title;
+
+  const feedItems: ActivityItem[] = [];
+
+  for (const rfq of activityRfqs ?? []) {
+    feedItems.push({ type: "rfq_created", message: `"${rfq.title}" teklif talebi oluşturuldu`, timestamp: rfq.created_at, link: `/rfq/${rfq.id}` });
+  }
+
+  for (const rec of (activityRecipientsResult.data ?? [])) {
+    const supplierRaw = rec.suppliers;
+    const supplierName = supplierRaw
+      ? ((Array.isArray(supplierRaw) ? supplierRaw[0] : supplierRaw) as { company_name: string } | null)?.company_name ?? "Tedarikçi"
+      : "Tedarikçi";
+    const rfqLink = rec.rfq_id ? `/rfq/${rec.rfq_id}` : undefined;
+
+    if (rec.sent_at)      feedItems.push({ type: "rfq_sent",       message: `${supplierName} firmasına teklif isteği gönderildi`, timestamp: rec.sent_at,      link: rfqLink });
+    if (rec.responded_at) feedItems.push({ type: "quote_received",  message: `${supplierName} teklif gönderdi`,                   timestamp: rec.responded_at, link: rfqLink });
+    if (rec.awarded_at)   feedItems.push({ type: "order_created",   message: `${supplierName} seçildi, sipariş oluşturuldu`,      timestamp: rec.awarded_at,   link: rfqLink });
+  }
+
+  for (const order of activityOrders ?? []) {
+    const title = order.rfq_id ? rfqTitleMap[order.rfq_id] : undefined;
+    const label = title ? `"${title}"` : "Sipariş";
+    if (order.completed_at) feedItems.push({ type: "order_completed", message: `${label} tamamlandı`, timestamp: order.completed_at, link: `/orders/${order.id}` });
+    if (order.cancelled_at) feedItems.push({ type: "order_cancelled", message: `${label} iptal edildi`, timestamp: order.cancelled_at, link: `/orders/${order.id}` });
+  }
+
+  const feed = feedItems
+    .filter((i) => i.timestamp)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 20);
 
   const companyName = buyer?.company_name || buyer?.full_name || "Firma";
   const today = new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase();
@@ -141,6 +189,8 @@ export default async function DashboardPage() {
           </>
         )}
       </div>
+
+      <ActivityFeed items={feed} />
 
       {/* Hızlı Erişim */}
       <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
