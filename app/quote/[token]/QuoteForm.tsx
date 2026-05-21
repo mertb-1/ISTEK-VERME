@@ -213,6 +213,7 @@ export default function QuoteForm({
                             step="any"
                             value={quoteItems[idx].unit_price}
                             onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
+                            onWheel={(e) => (e.target as HTMLElement).blur()}
                             placeholder="0.00"
                             className="w-full pl-3 pr-2 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
@@ -280,6 +281,7 @@ export default function QuoteForm({
                         step="any"
                         value={quoteItems[idx].unit_price}
                         onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
+                        onWheel={(e) => (e.target as HTMLElement).blur()}
                         placeholder="0.00"
                         className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
