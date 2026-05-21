@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Package } from "lucide-react";
+import OrderActions from "./OrderActions";
 
 export const dynamic = "force-dynamic";
 
@@ -159,6 +160,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           )}
         </div>
       )}
+
+      <OrderActions orderId={order.id} status={order.status} />
 
       {/* Order items */}
       {orderItems && orderItems.length > 0 && (
