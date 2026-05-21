@@ -476,27 +476,6 @@ export default function RfqDetail({
                   ))}
                 </tr>
 
-                {cheapestMixTotal > 0 && (
-                  <tr style={{ background: "#edf8f1", borderTop: "1px solid #c3e6cb" }}>
-                    <td className="px-5 py-4 sticky left-0 z-10" style={{ background: "#edf8f1", borderRight: "1px solid #c3e6cb" }}>
-                      <div className="flex items-center gap-2">
-                        <Trophy className="w-4 h-4" style={{ color: "#1a7a3a" }} />
-                        <div>
-                          <div className="font-bold text-sm uppercase tracking-wider" style={{ color: "#1a7a3a" }}>En Ucuz Karma</div>
-                          <div className="text-xs mt-0.5 font-normal" style={{ color: "#1a7a3a", opacity: 0.7 }}>Her üründen en düşük</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td colSpan={respondedRecipients.length + pendingRecipients.length} className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold tabular-nums" style={{ color: "#1a7a3a" }}>{formatPrice(cheapestMixTotal)}</span>
-                        <span className="text-sm" style={{ color: "#1a7a3a", opacity: 0.8 }}>
-                          Her üründe en ucuz teklifi seçerek elde edilebilecek teorik minimum
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -516,6 +495,48 @@ export default function RfqDetail({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Cheapest mix summary */}
+          {cheapestMixTotal > 0 && respondedRecipients.length > 1 && (
+            <div className="px-6 py-5" style={{ borderTop: "1px solid #e6ddd4", background: "#fff" }}>
+              <div className="rounded-xl px-5 py-4" style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: "#d4f0de" }}>
+                      <Trophy className="w-4 h-4" style={{ color: "#1a7a3a" }} />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm" style={{ color: "#1a7a3a" }}>En Ucuz Karma</div>
+                      <div className="text-xs mt-0.5" style={{ color: "#1a7a3a", opacity: 0.75 }}>
+                        Her üründe en düşük birim fiyatı seçerek elde edilebilecek teorik minimum tutar
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start sm:items-end gap-1 sm:pl-4 flex-shrink-0">
+                    <span className="text-2xl font-bold tabular-nums" style={{ color: "#1a7a3a" }}>
+                      {formatPrice(cheapestMixTotal)}
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {items.map((item) => {
+                        const minPrice = getMinPriceForItem(item.id);
+                        if (!minPrice) return null;
+                        const cheapestR = respondedRecipients.find(
+                          (r) => getPriceForItem(r, item.id)?.unit_price === minPrice
+                        );
+                        const supplierName = cheapestR ? getSupplier(cheapestR)?.company_name : null;
+                        return (
+                          <span key={item.id} className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#d4f0de", color: "#1a7a3a" }}>
+                            {item.product_name}
+                            {supplierName && <span style={{ opacity: 0.7 }}>· {supplierName}</span>}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
