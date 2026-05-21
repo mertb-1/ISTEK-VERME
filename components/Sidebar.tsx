@@ -4,16 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle, Bell, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle, ShoppingBag } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 
 const navItems = [
-  { href: "/dashboard", label: "Ana Sayfa", icon: LayoutDashboard },
-  { href: "/rfq", label: "Teklifler", icon: FileText },
-  { href: "/rfq/new", label: "Yeni Teklif", icon: Plus },
-  { href: "/suppliers", label: "Tedarikçiler", icon: Users },
-  { href: "/orders", label: "Siparişlerim", icon: ShoppingBag },
-  { href: "/profile", label: "Profilim", icon: UserCircle },
+  { href: "/dashboard",  label: "Dashboard",    icon: LayoutDashboard },
+  { href: "/rfq",        label: "Tekliflerim",  icon: FileText },
+  { href: "/orders",     label: "Siparişlerim", icon: ShoppingBag },
+  { href: "/suppliers",  label: "Tedarikçiler", icon: Users },
+  { href: "/profile",    label: "Profil",       icon: UserCircle },
 ];
 
 export default function Sidebar({
@@ -56,7 +55,7 @@ export default function Sidebar({
     .toUpperCase();
 
   function isActive(href: string) {
-    if (href === "/rfq") return pathname.startsWith("/rfq") && pathname !== "/rfq/new";
+    if (href === "/rfq") return pathname.startsWith("/rfq") && !pathname.startsWith("/rfq/new");
     if (href === "/orders") return pathname.startsWith("/orders");
     return pathname === href;
   }
@@ -68,35 +67,27 @@ export default function Sidebar({
       {/* Topbar */}
       <div
         className="fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 h-12"
-        style={{ background: "#111111" }}
+        style={{ background: "#111111", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <button
           onClick={() => setOpen(true)}
           aria-label="Menüyü aç"
-          className="w-8 h-8 flex items-center justify-center rounded transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/10"
           style={{ color: "rgba(255,255,255,0.5)" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-          onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
         >
           <Menu className="w-4 h-4" />
         </button>
 
-        <span className="text-white text-sm font-medium flex-1">{currentLabel}</span>
+        <span className="text-white text-sm font-medium flex-1 truncate">{currentLabel}</span>
 
-        {/* Right side */}
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded transition-colors" style={{ color: "rgba(255,255,255,0.7)" }}>
-            <Bell className="w-3.5 h-3.5" />
-          </button>
-          <Link
-            href="/rfq/new"
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-colors"
-            style={{ background: "#fff", color: "#111" }}
-          >
-            <Plus className="w-3 h-3" />
-            Yeni Teklif
-          </Link>
-        </div>
+        <Link
+          href="/rfq/new"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-85"
+          style={{ background: "#fff", color: "#111" }}
+        >
+          <Plus className="w-3 h-3" />
+          Yeni Teklif
+        </Link>
       </div>
 
       {/* Backdrop */}
@@ -114,14 +105,14 @@ export default function Sidebar({
         className={`fixed top-0 left-0 bottom-0 z-50 w-64 flex flex-col transition-transform duration-300 ease-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
-        style={{ background: "#111111" }}
+        style={{ background: "#111111", borderRight: "1px solid rgba(255,255,255,0.06)" }}
         aria-label="Navigasyon menüsü"
       >
         {/* Close */}
         <button
           onClick={() => setOpen(false)}
           aria-label="Menüyü kapat"
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded transition-colors"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-white/10"
           style={{ color: "rgba(255,255,255,0.4)" }}
         >
           <X className="w-4 h-4" />
@@ -153,7 +144,7 @@ export default function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -165,13 +156,28 @@ export default function Sidebar({
                 style={{
                   background: active ? "rgba(255,255,255,0.1)" : "transparent",
                   color: active ? "#fff" : "rgba(255,255,255,0.5)",
+                  borderLeft: active ? "2px solid #fff" : "2px solid transparent",
+                  marginLeft: 0,
+                  paddingLeft: active ? "10px" : "12px",
                 }}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1 font-medium">{item.label}</span>
               </Link>
             );
           })}
+
+          {/* Divider + action */}
+          <div className="pt-3 mt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <Link
+              href="/rfq/new"
+              className="flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1">Yeni Teklif</span>
+            </Link>
+          </div>
         </nav>
 
         {/* User */}
@@ -184,13 +190,13 @@ export default function Sidebar({
               {userInitials}
             </div>
             <div className="min-w-0">
-              <div className="text-white text-sm font-medium truncate">{buyer.full_name}</div>
+              <div className="text-white text-xs font-medium truncate">{buyer.full_name}</div>
               <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.35)" }}>{buyer.company_name}</div>
             </div>
           </div>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors hover:bg-white/5"
             style={{ color: "rgba(255,255,255,0.4)" }}
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />

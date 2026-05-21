@@ -1,3 +1,4 @@
+import { CheckCircle } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 
 type Props = {
@@ -36,80 +37,102 @@ export default function QuoteAwarded({
       : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Alıcı firma kimliği */}
-      <div className="bg-white border-b border-gray-200 py-5">
-        <div className="max-w-4xl mx-auto px-4 text-center">
+    <div className="min-h-screen" style={{ background: "#faf4ee" }}>
+      {/* Buyer identity bar */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #e6ddd4" }}>
+        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col items-center gap-1">
           {buyerLogoUrl ? (
             <img
               src={buyerLogoUrl}
               alt={buyerCompany}
-              className="h-12 mx-auto object-contain mb-2"
+              className="h-10 object-contain"
             />
           ) : (
-            <p className="text-lg font-bold text-slate-800 mb-1">{buyerCompany}</p>
-          )}
-          <p className="text-sm text-gray-500">
-            Bu teklif talebi <strong>{buyerCompany}</strong> tarafından gönderilmiştir.
-          </p>
-        </div>
-      </div>
-
-      {/* Header */}
-      <div className="bg-slate-900">
-        <div className="max-w-4xl mx-auto px-4 py-5">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
+              style={{ background: "#8b3a2a" }}
+            >
+              {buyerCompany.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
             </div>
-            <span className="text-gray-400 text-sm">{APP_NAME}</span>
-          </div>
-          <h1 className="text-xl font-bold text-white">{rfqTitle}</h1>
-          <p className="text-sm text-gray-400 mt-1">Alıcı: <span className="text-gray-200 font-medium">{buyerCompany}</span></p>
+          )}
+          <p className="text-xs" style={{ color: "#7a6e67" }}>
+            <strong style={{ color: "#111" }}>{buyerCompany}</strong> · {APP_NAME}
+          </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Teklifiniz Onaylandı!</h2>
-          <p className="text-gray-500 mb-6">
-            {buyerCompany} firması teklifinizi sipariş olarak onaylamıştır.
-            {supplierName ? ` Sayın ${supplierName}, tebrikler!` : ""}
+      {/* RFQ info header */}
+      <div style={{ background: "#111" }}>
+        <div className="max-w-3xl mx-auto px-4 py-5">
+          <p className="text-xs tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em" }}>
+            {APP_NAME} · TEKLİF TALEBİ
           </p>
+          <h1 className="text-xl font-semibold text-white leading-snug">{rfqTitle}</h1>
+          <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+            Alıcı: <span style={{ color: "rgba(255,255,255,0.85)" }}>{buyerCompany}</span>
+          </p>
+        </div>
+      </div>
 
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          {/* Success banner */}
+          <div className="px-6 py-8 text-center" style={{ borderBottom: (amountText || deliveryText || buyerNote) ? "1px solid #e6ddd4" : undefined }}>
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: "#edf8f1" }}
+            >
+              <CheckCircle className="w-7 h-7" style={{ color: "#1a7a3a" }} />
+            </div>
+            <h2
+              className="text-2xl font-semibold mb-2"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}
+            >
+              Teklifiniz <em style={{ color: "#1a7a3a" }}>onaylandı!</em>
+            </h2>
+            <p className="text-sm" style={{ color: "#7a6e67" }}>
+              {buyerCompany} firması teklifinizi sipariş olarak onaylamıştır.
+              {supplierName ? ` Sayın ${supplierName}, tebrikler!` : ""}
+            </p>
+          </div>
+
+          {/* Order details */}
           {(amountText || deliveryText || buyerNote) && (
-            <div className="bg-gray-50 rounded-xl p-5 text-left space-y-3 max-w-sm mx-auto">
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b0a49e" }}>
+                Sipariş Detayları
+              </p>
               {amountText && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Onaylanan Tutar</span>
-                  <span className="font-semibold text-gray-900">{amountText}</span>
+                <div className="flex justify-between items-center py-2" style={{ borderBottom: "1px solid #f0e8e0" }}>
+                  <span className="text-sm" style={{ color: "#7a6e67" }}>Onaylanan Tutar</span>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: "#111" }}>{amountText}</span>
                 </div>
               )}
               {deliveryText && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Teslim Tarihi</span>
-                  <span className="font-semibold text-gray-900">{deliveryText}</span>
+                <div className="flex justify-between items-center py-2" style={{ borderBottom: buyerNote ? "1px solid #f0e8e0" : undefined }}>
+                  <span className="text-sm" style={{ color: "#7a6e67" }}>Teslim Tarihi</span>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: "#111" }}>{deliveryText}</span>
                 </div>
               )}
               {buyerNote && (
-                <div className="text-sm">
-                  <span className="text-gray-500 block mb-1">Alıcı Notu</span>
-                  <span className="text-gray-700">{buyerNote}</span>
+                <div className="py-2">
+                  <span className="text-xs font-medium block mb-1" style={{ color: "#7a6e67" }}>Alıcı Notu</span>
+                  <p
+                    className="text-sm leading-relaxed px-3 py-2 rounded-lg"
+                    style={{ background: "#faf4ee", color: "#111" }}
+                  >
+                    {buyerNote}
+                  </p>
                 </div>
               )}
             </div>
           )}
 
-          <p className="mt-6 text-xs text-gray-400">
-            Sipariş detayları için {buyerCompany} firmasıyla iletişime geçebilirsiniz.
-          </p>
+          <div className="px-6 py-4" style={{ borderTop: "1px solid #f0e8e0", background: "#faf4ee" }}>
+            <p className="text-xs text-center" style={{ color: "#b0a49e" }}>
+              Sipariş detayları için {buyerCompany} firmasıyla iletişime geçebilirsiniz.
+            </p>
+          </div>
         </div>
       </div>
     </div>
