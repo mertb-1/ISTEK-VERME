@@ -74,9 +74,7 @@ export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
                 {item.link ? (
                   <Link
                     href={item.link}
-                    className="block transition-colors"
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#fef5e4"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = ""; }}
+                    className="block transition-colors hover:bg-[#fef5e4]"
                   >
                     {inner}
                   </Link>

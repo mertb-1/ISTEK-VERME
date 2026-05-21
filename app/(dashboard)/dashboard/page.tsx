@@ -93,10 +93,8 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <Link
           href="/rfq/new"
-          className="flex items-center gap-4 px-5 py-4 rounded-xl transition-colors group"
+          className="flex items-center gap-4 px-5 py-4 rounded-xl transition-opacity hover:opacity-90"
           style={{ background: "#111", color: "#fff" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#222"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#111"; }}
         >
           <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
             <span className="text-white text-xl font-bold leading-none">+</span>
@@ -109,10 +107,8 @@ export default async function DashboardPage() {
 
         <Link
           href="/suppliers"
-          className="flex items-center gap-4 px-5 py-4 rounded-xl transition-colors"
+          className="flex items-center gap-4 px-5 py-4 rounded-xl transition-colors hover:bg-[#fef5e4]"
           style={{ background: "#fff", border: "1px solid #e6ddd4" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#fef5e4"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#fff"; }}
         >
           <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#f5f0eb" }}>
             <Users className="w-4 h-4" style={{ color: "#7a6e67" }} />
@@ -183,9 +179,7 @@ export default async function DashboardPage() {
                     <li key={rfq.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
                       <Link
                         href={`/rfq/${rfq.id}`}
-                        className="flex items-center justify-between px-5 py-3.5 transition-colors"
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#fef5e4"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = ""; }}
+                        className="flex items-center justify-between px-5 py-3.5 transition-colors hover:bg-[#fef5e4]"
                       >
                         <div className="flex-1 min-w-0 mr-3">
                           <div className="text-sm font-medium truncate" style={{ color: "#111" }}>{rfq.title}</div>
