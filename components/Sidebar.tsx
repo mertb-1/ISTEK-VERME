@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle, Bell } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, Users, LogOut, Menu, X, UserCircle, Bell, ShoppingBag } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/rfq", label: "Teklifler", icon: FileText },
   { href: "/rfq/new", label: "Yeni Teklif", icon: Plus },
   { href: "/suppliers", label: "Tedarikçiler", icon: Users },
+  { href: "/orders", label: "Siparişlerim", icon: ShoppingBag },
   { href: "/profile", label: "Profilim", icon: UserCircle },
 ];
 
@@ -54,11 +55,13 @@ export default function Sidebar({
     .join("")
     .toUpperCase();
 
-  const currentLabel = navItems.find(
-    (item) =>
-      pathname === item.href ||
-      (item.href === "/rfq" && pathname.startsWith("/rfq") && pathname !== "/rfq/new")
-  )?.label ?? "";
+  function isActive(href: string) {
+    if (href === "/rfq") return pathname.startsWith("/rfq") && pathname !== "/rfq/new";
+    if (href === "/orders") return pathname.startsWith("/orders");
+    return pathname === href;
+  }
+
+  const currentLabel = navItems.find((item) => isActive(item.href))?.label ?? "";
 
   return (
     <>
@@ -153,9 +156,7 @@ export default function Sidebar({
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active =
-              pathname === item.href ||
-              (item.href === "/rfq" && pathname.startsWith("/rfq") && pathname !== "/rfq/new");
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}

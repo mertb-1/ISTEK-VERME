@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import RfqList, { RfqRow } from "./RfqList";
+
+export const dynamic = "force-dynamic";
 
 export default async function RfqListPage() {
   const supabase = createClient();
@@ -8,12 +10,20 @@ export default async function RfqListPage() {
 
   const { data: rfqs } = await supabase
     .from("rfqs")
-    .select(`id, title, status, deadline, created_at, rfq_recipients(count), rfq_items(count)`)
+    .select(`id, title, status, deadline, created_at, awarded_recipient_id, rfq_recipients(count), rfq_items(count)`)
     .eq("buyer_id", user!.id)
     .order("created_at", { ascending: false });
 
-  const openCount = rfqs?.filter((r) => r.status === "open").length ?? 0;
-  const closedCount = rfqs?.filter((r) => r.status !== "open").length ?? 0;
+  const rows: RfqRow[] = (rfqs ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    deadline: r.deadline,
+    created_at: r.created_at,
+    awarded_recipient_id: r.awarded_recipient_id ?? null,
+    recipient_count: (r.rfq_recipients as unknown as { count: number }[])?.[0]?.count ?? 0,
+    item_count: (r.rfq_items as unknown as { count: number }[])?.[0]?.count ?? 0,
+  }));
 
   return (
     <div className="p-8 max-w-5xl">
@@ -35,106 +45,11 @@ export default async function RfqListPage() {
           </Link>
         </div>
         <p className="text-sm mt-2" style={{ color: "#7a6e67" }}>
-          Filonuza giden tüm teklif talepleri ve durumları. Kapalı olanları arşivden geri getirebilirsiniz.
+          Filonuza giden tüm teklif talepleri ve durumları.
         </p>
       </div>
 
-      {/* Stats bar */}
-      {rfqs && rfqs.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            { label: "TOPLAM", value: rfqs.length },
-            { label: "AÇIK", value: openCount },
-            { label: "KAPALI", value: closedCount },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl p-4" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-              <p className="text-xs tracking-widest mb-1" style={{ color: "#7a6e67", letterSpacing: "0.1em" }}>{s.label}</p>
-              <p className="font-display text-3xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!rfqs || rfqs.length === 0 ? (
-        <div className="rounded-xl px-6 py-20 text-center" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-          <p className="text-sm mb-2" style={{ color: "#7a6e67" }}>Henüz teklif talebi oluşturmadınız.</p>
-          <Link
-            href="/rfq/new"
-            className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded mt-4"
-            style={{ background: "#111", color: "#fff" }}
-          >
-            + İlk Teklif Talebini Oluştur
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {rfqs.map((rfq) => {
-            const recipientCount = (rfq.rfq_recipients as unknown as { count: number }[])?.[0]?.count ?? 0;
-            const itemCount = (rfq.rfq_items as unknown as { count: number }[])?.[0]?.count ?? 0;
-            const isOpen = rfq.status === "open";
-            const deadline = rfq.deadline ? new Date(rfq.deadline) : null;
-            const isOverdue = deadline && deadline < new Date() && isOpen;
-
-            return (
-              <Link
-                key={rfq.id}
-                href={`/rfq/${rfq.id}`}
-                className="block rounded-xl p-5 transition-all group hover:border-orange-800"
-                style={{ background: "#fff", border: "1px solid #e6ddd4" }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-xs font-mono" style={{ color: "#b0a49e" }}>
-                    TKF-{rfq.id.slice(0, 8).toUpperCase()}
-                  </span>
-                  <span
-                    className="flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded"
-                    style={{
-                      background: isOpen ? "#fdf0ee" : "#f5f0eb",
-                      color: isOpen ? "#8b3a2a" : "#7a6e67",
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: isOpen ? "#c0392b" : "#aaa" }}
-                    />
-                    {isOpen ? "Açık" : "Kapalı"}
-                  </span>
-                </div>
-
-                <h3 className="font-semibold text-base mb-3 leading-snug" style={{ color: "#111" }}>
-                  {rfq.title}
-                </h3>
-
-                {/* Progress bar */}
-                <div className="w-full h-1 rounded-full mb-3 overflow-hidden" style={{ background: "#f0e8e0" }}>
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: recipientCount > 0 ? `${Math.min(100, (recipientCount / Math.max(recipientCount, 6)) * 100)}%` : "0%",
-                      background: isOpen ? "#8b3a2a" : "#aaa",
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-xs" style={{ color: "#7a6e67" }}>
-                  <span>{itemCount} kalem · {recipientCount} tedarikçi</span>
-                  <div className="flex items-center gap-1">
-                    {isOverdue && <AlertTriangle className="w-3 h-3" style={{ color: "#c0392b" }} />}
-                    {deadline && (
-                      <span style={{ color: isOverdue ? "#c0392b" : "#b0a49e" }}>
-                        {deadline.toLocaleDateString("tr-TR")}
-                      </span>
-                    )}
-                    <span className="ml-2 font-medium" style={{ color: "#111" }}>
-                      İncele →
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      <RfqList rfqs={rows} />
     </div>
   );
 }
