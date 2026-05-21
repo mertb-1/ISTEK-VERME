@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import RfqList, { RfqRow } from "./RfqList";
 
@@ -8,11 +9,14 @@ export default async function RfqListPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: rfqs } = await supabase
+  const admin = createAdminClient();
+  const { data: rfqs, error: rfqsErr } = await admin
     .from("rfqs")
     .select(`id, title, status, deadline, created_at, awarded_recipient_id, rfq_recipients(count), rfq_items(count)`)
     .eq("buyer_id", user!.id)
     .order("created_at", { ascending: false });
+
+  if (rfqsErr) console.error("rfqs fetch error:", rfqsErr.code, rfqsErr.message);
 
   const rows: RfqRow[] = (rfqs ?? []).map((r) => ({
     id: r.id,
