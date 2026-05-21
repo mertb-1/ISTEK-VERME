@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
-const STATUS_LABELS: Record<string, { label: string; bg: string; color: string }> = {
-  pending_confirmation: { label: "Onay Bekliyor", bg: "#fef5e4", color: "#a06a00" },
-  confirmed:            { label: "Onaylandı",     bg: "#edf8f1", color: "#1a7a3a" },
-  completed:            { label: "Tamamlandı",    bg: "#edf8f1", color: "#1a7a3a" },
-  cancelled:            { label: "İptal Edildi",  bg: "#fdf0ee", color: "#8b3a2a" },
-};
+import { ShoppingBag, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import StatusBadge from "@/components/StatusBadge";
+import EmptyState from "@/components/EmptyState";
 
 type Tab = "all" | "current" | "completed" | "cancelled";
 
@@ -55,8 +52,8 @@ export default function OrdersList({ orders }: { orders: OrderRow[] }) {
       `spr-${o.id.slice(0, 8)}`.includes(q);
     let matchesTab = true;
     if (tab === "current")   matchesTab = CURRENT_STATUSES.has(o.status);
-    if (tab === "completed")  matchesTab = o.status === "completed";
-    if (tab === "cancelled")  matchesTab = o.status === "cancelled";
+    if (tab === "completed") matchesTab = o.status === "completed";
+    if (tab === "cancelled") matchesTab = o.status === "cancelled";
     return matchesSearch && matchesTab;
   });
 
@@ -69,112 +66,153 @@ export default function OrdersList({ orders }: { orders: OrderRow[] }) {
 
   return (
     <>
-      {/* Search */}
-      <div className="mb-4">
-        <input
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+        <Input
           type="text"
           placeholder="RFQ veya tedarikçi ara…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-72 text-sm px-4 py-2.5 rounded-lg outline-none"
-          style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+          className="w-full sm:w-72 text-sm"
+          style={{ borderColor: "#e6ddd4", background: "#fff" }}
         />
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 flex-wrap">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-            style={{
-              background: tab === t.key ? "#111" : "#fff",
-              color: tab === t.key ? "#fff" : "#7a6e67",
-              border: "1px solid",
-              borderColor: tab === t.key ? "#111" : "#e6ddd4",
-            }}
-          >
-            {t.label}
-            <span
-              className="text-xs px-1.5 py-0.5 rounded"
-              style={{
-                background: tab === t.key ? "rgba(255,255,255,0.2)" : "#f0e8e0",
-                color: tab === t.key ? "#fff" : "#7a6e67",
-              }}
+        <div
+          className="flex items-center gap-1 rounded-lg p-1"
+          style={{ background: "#f5f0eb", border: "1px solid #e6ddd4" }}
+        >
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md transition-all"
+              style={
+                tab === t.key
+                  ? { background: "#111", color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)" }
+                  : { background: "transparent", color: "#7a6e67" }
+              }
             >
-              {counts[t.key]}
-            </span>
-          </button>
-        ))}
+              {t.label}
+              <span
+                className="text-xs px-1.5 py-0.5 rounded-sm font-mono leading-none"
+                style={
+                  tab === t.key
+                    ? { background: "rgba(255,255,255,0.18)", color: "#fff" }
+                    : { background: "#e6ddd4", color: "#7a6e67" }
+                }
+              >
+                {counts[t.key]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Table */}
-      {filtered.length === 0 ? (
-        <div className="rounded-xl px-6 py-16 text-center" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-          <p className="text-sm" style={{ color: "#7a6e67" }}>
-            {orders.length === 0 ? "Henüz sipariş bulunmuyor." : "Bu filtreye uyan sipariş yok."}
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #e6ddd4" }}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ background: "#faf4ee", borderBottom: "1px solid #e6ddd4" }}>
-                <th className="text-left px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Ref</th>
-                <th className="text-left px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Teklif Talebi</th>
-                <th className="text-left px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Tedarikçi</th>
-                <th className="text-right px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Tutar</th>
-                <th className="text-left px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Durum</th>
-                <th className="text-left px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Oluşturuldu</th>
-                <th className="text-left px-5 py-3 font-semibold text-xs tracking-wider uppercase" style={{ color: "#7a6e67" }}>Teslim</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((order, idx) => {
-                const statusCfg = STATUS_LABELS[order.status] ?? { label: order.status, bg: "#f5f0eb", color: "#7a6e67" };
-                const isEven = idx % 2 === 0;
-                return (
-                  <Link key={order.id} href={`/orders/${order.id}`} legacyBehavior>
+      {/* Table container */}
+      <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+        {filtered.length === 0 ? (
+          orders.length === 0 ? (
+            <EmptyState
+              icon={ShoppingBag}
+              title="Henüz sipariş bulunmuyor"
+              description="Teklif taleplerini değerlendirip bir tedarikçi seçtiğinizde siparişler burada görünür."
+            />
+          ) : (
+            <EmptyState
+              icon={ShoppingBag}
+              title="Sonuç bulunamadı"
+              description="Arama veya filtre kriterlerini değiştirmeyi deneyin."
+            />
+          )
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+                  <th className="text-left px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>REF</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>TEKLİF TALEBİ</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>TEDARİKÇİ</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>TUTAR</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>DURUM</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>TESLİM</th>
+                  <th className="text-right px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>TARİH</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((order, idx) => {
+                  const isEven = idx % 2 === 0;
+                  return (
                     <tr
-                      className="cursor-pointer transition-colors hover:bg-orange-50"
-                      style={{ background: isEven ? "#fff" : "#faf4ee", borderBottom: "1px solid #f0e8e0" }}
+                      key={order.id}
+                      className="group transition-colors"
+                      style={{
+                        borderBottom: "1px solid #f0e8e0",
+                        background: isEven ? "#fff" : "#fdfaf7",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#fef5e4"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = isEven ? "#fff" : "#fdfaf7"; }}
                     >
-                      <td className="px-5 py-3 font-mono text-xs" style={{ color: "#b0a49e" }}>
-                        SPR-{order.id.slice(0, 8).toUpperCase()}
-                      </td>
-                      <td className="px-5 py-3 font-medium max-w-[200px] truncate" style={{ color: "#111" }}>
-                        {order.rfq_title ?? "—"}
-                      </td>
-                      <td className="px-5 py-3" style={{ color: "#7a6e67" }}>
-                        {order.supplier_name ?? "—"}
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: "#111" }}>
-                        {formatPrice(order.confirmed_amount)}
-                      </td>
-                      <td className="px-5 py-3">
-                        <span
-                          className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded"
-                          style={{ background: statusCfg.bg, color: statusCfg.color }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusCfg.color }} />
-                          {statusCfg.label}
+                      <td className="px-5 py-4">
+                        <span className="text-xs font-mono" style={{ color: "#b0a49e" }}>
+                          SPR-{order.id.slice(0, 8).toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-5 py-3" style={{ color: "#7a6e67" }}>
-                        {formatDate(order.created_at)}
+
+                      <td className="px-5 py-4">
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="font-medium leading-snug hover:underline"
+                          style={{ color: "#111" }}
+                        >
+                          {order.rfq_title ?? "—"}
+                        </Link>
                       </td>
-                      <td className="px-5 py-3" style={{ color: "#7a6e67" }}>
+
+                      <td className="px-4 py-4 text-sm" style={{ color: "#7a6e67" }}>
+                        {order.supplier_name ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-4 text-right tabular-nums font-semibold" style={{ color: "#111" }}>
+                        {formatPrice(order.confirmed_amount)}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <StatusBadge status={order.status} />
+                      </td>
+
+                      <td className="px-5 py-4 text-right text-xs tabular-nums" style={{ color: "#b0a49e" }}>
                         {formatDate(order.expected_delivery)}
                       </td>
+
+                      <td className="px-5 py-4 text-right text-xs tabular-nums" style={{ color: "#b0a49e" }}>
+                        {formatDate(order.created_at)}
+                      </td>
+
+                      <td className="px-4 py-4 text-right">
+                        <Link href={`/orders/${order.id}`} tabIndex={-1} aria-hidden>
+                          <ArrowRight
+                            className="w-4 h-4 ml-auto transition-transform group-hover:translate-x-0.5"
+                            style={{ color: "#d0c8c0" }}
+                          />
+                        </Link>
+                      </td>
                     </tr>
-                  </Link>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="px-5 py-3" style={{ borderTop: "1px solid #f0e8e0" }}>
+              <p className="text-xs" style={{ color: "#b0a49e" }}>
+                {filtered.length} kayıt gösteriliyor
+                {filtered.length !== orders.length && ` (toplam ${orders.length})`}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

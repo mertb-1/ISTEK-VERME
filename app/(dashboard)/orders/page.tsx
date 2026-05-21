@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import OrdersList, { OrderRow } from "./OrdersList";
+import PageHeader from "@/components/PageHeader";
+import StatCard from "@/components/StatCard";
 
 export const dynamic = "force-dynamic";
 
@@ -48,32 +50,18 @@ export default async function OrdersPage() {
 
   return (
     <div className="p-8 max-w-6xl">
-      {/* Heading */}
-      <div className="mb-8">
-        <p className="text-xs tracking-widest mb-3" style={{ color: "#7a6e67", letterSpacing: "0.12em" }}>
-          SATIN ALMA · SİPARİŞLER
-        </p>
-        <h1 className="font-display text-5xl leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-          Sipariş <em style={{ color: "#8b3a2a", fontStyle: "italic" }}>kütüğü.</em>
-        </h1>
-        <p className="text-sm mt-2" style={{ color: "#7a6e67" }}>
-          Onaylanan tüm siparişleriniz ve güncel durumları.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="SATIN ALMA · SİPARİŞLER"
+        title="Sipariş"
+        accentWord="kütüğü."
+        description="Onaylanan tüm siparişleriniz ve güncel durumları."
+      />
 
-      {/* Stats */}
       {total > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            { label: "TOPLAM", value: total },
-            { label: "AKTİF", value: active },
-            { label: "TAMAMLANDI", value: completed },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl p-4" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-              <p className="text-xs tracking-widest mb-1" style={{ color: "#7a6e67", letterSpacing: "0.1em" }}>{s.label}</p>
-              <p className="font-display text-3xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}>{s.value}</p>
-            </div>
-          ))}
+          <StatCard label="TOPLAM" value={total} />
+          <StatCard label="AKTİF" value={active} variant="warning" />
+          <StatCard label="TAMAMLANDI" value={completed} variant="success" />
         </div>
       )}
 
