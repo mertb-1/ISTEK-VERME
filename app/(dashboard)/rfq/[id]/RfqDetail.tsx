@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, Mail, XCircle, AlertTriangle, Trophy, Package, ExternalLink } from "lucide-react";
+import { CheckCircle, Clock, Mail, AlertTriangle, Trophy, Package, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -30,12 +30,6 @@ function getInitials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-const statusConfig: Record<string, { label: string; icon: React.ReactNode; bg: string; color: string }> = {
-  sent:      { label: "Gönderildi",   icon: <Mail className="w-3 h-3" />,         bg: "#f5f0eb", color: "#7a6e67" },
-  opened:    { label: "Açıldı",       icon: <Clock className="w-3 h-3" />,        bg: "#fef5e4", color: "#a06a00" },
-  responded: { label: "Cevap Verdi",  icon: <CheckCircle className="w-3 h-3" />, bg: "#edf8f1", color: "#1a7a3a" },
-  expired:   { label: "Süresi Geçti", icon: <XCircle className="w-3 h-3" />,     bg: "#fdf0ee", color: "#8b3a2a" },
-};
 
 function formatPrice(n: number | null | undefined) {
   if (!n) return "—";
@@ -238,23 +232,38 @@ export default function RfqDetail({
         );
       })()}
 
-      {/* Tedarikçi durumları — mini satır */}
-      {recipients.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {recipients.map((r) => {
-            const s = getSupplier(r);
-            const cfg = statusConfig[r.status] ?? statusConfig.sent;
-            return (
-              <span
-                key={r.id}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded"
-                style={{ background: cfg.bg, color: cfg.color }}
-              >
-                {cfg.icon}
-                {s?.company_name}
-              </span>
-            );
-          })}
+      {/* Pending suppliers */}
+      {pendingRecipients.length > 0 && (
+        <div className="rounded-xl px-5 py-4 mb-6" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#b0a49e" }} />
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b0a49e" }}>
+              Cevap Bekleniyor · {pendingRecipients.length} tedarikçi
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {pendingRecipients.map((r) => {
+              const s = getSupplier(r);
+              const sentDate = r.sent_at
+                ? new Date(r.sent_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })
+                : null;
+              return (
+                <div
+                  key={r.id}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                  style={{ background: "#f5f0eb", border: "1px solid #e6ddd4" }}
+                >
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#e6ddd4", color: "#7a6e67" }}>
+                    {getInitials(s?.company_name ?? "?")}
+                  </div>
+                  <span className="text-xs font-medium" style={{ color: "#111" }}>{s?.company_name}</span>
+                  {sentDate && (
+                    <span className="text-xs" style={{ color: "#b0a49e" }}>· {sentDate} gönderildi</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
