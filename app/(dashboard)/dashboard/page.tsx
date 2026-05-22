@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, FileText, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, FileText, Users, Clock, TrendingUp, ShoppingBag } from "lucide-react";
 import ActivityFeed, { ActivityItem } from "./ActivityFeed";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
@@ -13,14 +13,39 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const admin = createAdminClient();
 
-  const [{ count: rfqCount }, { count: supplierCount }, { data: recentRfqs }, { data: buyer }, { data: buyerRfqIds }] =
-    await Promise.all([
-      supabase.from("rfqs").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id),
-      supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id),
-      supabase.from("rfqs").select("id, title, status, created_at, deadline").eq("buyer_id", user!.id).order("created_at", { ascending: false }).limit(5),
-      supabase.from("buyers").select("company_name, full_name").eq("id", user!.id).single(),
-      supabase.from("rfqs").select("id").eq("buyer_id", user!.id),
-    ]);
+  const now = new Date();
+  const in14Days = new Date(now.getTime() + 14 * 86400000);
+
+  const [
+    { count: rfqCount },
+    { count: supplierCount },
+    { data: recentRfqs },
+    { data: buyer },
+    { data: buyerRfqIds },
+    { data: upcomingDeadlines },
+    { data: recentOrders },
+  ] = await Promise.all([
+    supabase.from("rfqs").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id),
+    supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id),
+    supabase.from("rfqs").select("id, title, status, created_at, deadline").eq("buyer_id", user!.id).order("created_at", { ascending: false }).limit(10),
+    supabase.from("buyers").select("company_name, full_name").eq("id", user!.id).single(),
+    supabase.from("rfqs").select("id").eq("buyer_id", user!.id),
+    supabase
+      .from("rfqs")
+      .select("id, title, deadline")
+      .eq("buyer_id", user!.id)
+      .eq("status", "open")
+      .gte("deadline", now.toISOString())
+      .lte("deadline", in14Days.toISOString())
+      .order("deadline", { ascending: true })
+      .limit(5),
+    supabase
+      .from("orders")
+      .select("id, status, confirmed_amount, created_at, rfqs(title)")
+      .eq("buyer_id", user!.id)
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
 
   const rfqIdList = (buyerRfqIds ?? []).map((r: { id: string }) => r.id);
 
@@ -29,6 +54,8 @@ export default async function DashboardPage() {
     { data: activityRfqs },
     activityRecipientsResult,
     { data: activityOrders },
+    { count: totalSentCount },
+    { count: respondedCount },
   ] = await Promise.all([
     rfqIdList.length > 0
       ? admin.from("rfq_recipients").select("id", { count: "exact", head: true }).eq("status", "sent").in("rfq_id", rfqIdList)
@@ -38,6 +65,12 @@ export default async function DashboardPage() {
       ? admin.from("rfq_recipients").select("rfq_id, sent_at, responded_at, awarded_at, suppliers(company_name)").in("rfq_id", rfqIdList)
       : Promise.resolve({ data: [] as { rfq_id: string; sent_at: string | null; responded_at: string | null; awarded_at: string | null; suppliers: unknown }[] }),
     supabase.from("orders").select("id, rfq_id, completed_at, cancelled_at").eq("buyer_id", user!.id),
+    rfqIdList.length > 0
+      ? admin.from("rfq_recipients").select("id", { count: "exact", head: true }).in("rfq_id", rfqIdList)
+      : Promise.resolve({ count: 0 }),
+    rfqIdList.length > 0
+      ? admin.from("rfq_recipients").select("id", { count: "exact", head: true }).not("responded_at", "is", null).in("rfq_id", rfqIdList)
+      : Promise.resolve({ count: 0 }),
   ]);
 
   // Build activity feed
@@ -72,7 +105,12 @@ export default async function DashboardPage() {
   const feed = feedItems
     .filter((i) => i.timestamp)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 20);
+    .slice(0, 10);
+
+  // Response rate
+  const total = totalSentCount ?? 0;
+  const responded = respondedCount ?? 0;
+  const responseRate = total > 0 ? Math.round((responded / total) * 100) : null;
 
   const companyName = buyer?.company_name || buyer?.full_name || "Firma";
   const today = new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase();
@@ -140,7 +178,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Two-column: recent RFQs + activity */}
+      {/* Two-column: recent RFQs + right sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent RFQs */}
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
@@ -203,7 +241,7 @@ export default async function DashboardPage() {
                 })}
               </ul>
               <div className="px-5 py-3 flex items-center justify-between" style={{ borderTop: "1px solid #f0e8e0" }}>
-                <p className="text-xs" style={{ color: "#b0a49e" }}>Son 5 teklif talebi</p>
+                <p className="text-xs" style={{ color: "#b0a49e" }}>Son 10 teklif talebi</p>
                 <Link
                   href="/rfq/new"
                   className="text-xs font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-80"
@@ -216,8 +254,141 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Activity feed */}
-        <ActivityFeed items={feed} />
+        {/* Right column */}
+        <div className="flex flex-col gap-4">
+          {/* Activity feed */}
+          <ActivityFeed items={feed} />
+
+          {/* Deadline Yaklaşanlar */}
+          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+            <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+              <Clock className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
+              <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>DEADLINE YAKLAŞANLAR</h2>
+            </div>
+            {!upcomingDeadlines || upcomingDeadlines.length === 0 ? (
+              <p className="px-5 py-4 text-xs" style={{ color: "#b0a49e" }}>
+                Önümüzdeki 14 günde son tarihi yaklaşan açık talep yok.
+              </p>
+            ) : (
+              <ul>
+                {upcomingDeadlines.map((rfq, idx) => {
+                  const deadline = new Date(rfq.deadline!);
+                  const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / 86400000);
+                  const isUrgent = daysLeft <= 3;
+                  const isLast = idx === upcomingDeadlines.length - 1;
+                  return (
+                    <li key={rfq.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
+                      <Link
+                        href={`/rfq/${rfq.id}`}
+                        className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-[#fef5e4]"
+                      >
+                        <div className="flex-1 min-w-0 mr-3">
+                          <div className="text-xs font-medium truncate" style={{ color: "#111" }}>{rfq.title}</div>
+                          <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
+                            {deadline.toLocaleDateString("tr-TR")}
+                          </div>
+                        </div>
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0"
+                          style={
+                            isUrgent
+                              ? { background: "#fdf0ee", color: "#8b3a2a" }
+                              : { background: "#fef5e4", color: "#a06a00" }
+                          }
+                        >
+                          {daysLeft} gün
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Yanıt Oranı */}
+          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+            <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+              <TrendingUp className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
+              <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>YANIT ORANI</h2>
+            </div>
+            <div className="px-5 py-4">
+              {total === 0 ? (
+                <p className="text-xs" style={{ color: "#b0a49e" }}>Henüz gönderilmiş teklif talebi yok.</p>
+              ) : (
+                <div className="flex items-end gap-4">
+                  <div>
+                    <div className="text-3xl font-bold" style={{ color: "#111", letterSpacing: "-0.03em" }}>
+                      {responseRate ?? 0}
+                      <span className="text-lg font-semibold ml-0.5" style={{ color: "#7a6e67" }}>%</span>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "#b0a49e" }}>
+                      {responded} / {total} tedarikçi yanıtladı
+                    </p>
+                  </div>
+                  {/* Bar */}
+                  <div className="flex-1 mb-1">
+                    <div className="h-2 rounded-full overflow-hidden" style={{ background: "#f0e9e2" }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${responseRate ?? 0}%`, background: responseRate !== null && responseRate >= 60 ? "#1a7a3a" : "#8b3a2a" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Son Siparişler */}
+          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
+                <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>SON SİPARİŞLER</h2>
+              </div>
+              <Link href="/orders" className="text-xs font-medium transition-opacity hover:opacity-70" style={{ color: "#7a6e67" }}>
+                Tümü →
+              </Link>
+            </div>
+            {!recentOrders || recentOrders.length === 0 ? (
+              <p className="px-5 py-4 text-xs" style={{ color: "#b0a49e" }}>Henüz sipariş oluşturulmadı.</p>
+            ) : (
+              <ul>
+                {recentOrders.map((order, idx) => {
+                  const rfqTitle = order.rfqs
+                    ? ((Array.isArray(order.rfqs) ? order.rfqs[0] : order.rfqs) as { title: string } | null)?.title
+                    : undefined;
+                  const isLast = idx === recentOrders.length - 1;
+                  return (
+                    <li key={order.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-[#fef5e4]"
+                      >
+                        <div className="flex-1 min-w-0 mr-3">
+                          <div className="text-xs font-medium truncate" style={{ color: "#111" }}>
+                            {rfqTitle ?? "Sipariş"}
+                          </div>
+                          <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
+                            {new Date(order.created_at).toLocaleDateString("tr-TR")}
+                            {order.confirmed_amount != null && (
+                              <span> · {Number(order.confirmed_amount).toLocaleString("tr-TR")} USD</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <StatusBadge status={order.status} dot={false} />
+                          <ArrowRight className="w-3.5 h-3.5" style={{ color: "#d0c8c0" }} />
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
