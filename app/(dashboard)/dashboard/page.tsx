@@ -118,7 +118,7 @@ export default async function DashboardPage() {
   const awaiting = awaitingCount ?? 0;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8 w-full max-w-7xl">
       {/* Header */}
       <PageHeader
         eyebrow={today}
@@ -179,7 +179,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Three-column: RFQs | Activity | Widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.1fr_0.9fr] gap-6">
         {/* Recent RFQs */}
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
