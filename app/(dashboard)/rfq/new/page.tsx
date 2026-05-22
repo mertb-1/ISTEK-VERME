@@ -232,7 +232,7 @@ export default function NewRfqPage() {
   const filledItemCount = items.filter((i) => i.product_name.trim()).length;
 
   return (
-    <div className="px-4 sm:px-6 py-6 max-w-3xl">
+    <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
 
       {/* Breadcrumb + başlık */}
       <div className="mb-8">
@@ -274,7 +274,12 @@ export default function NewRfqPage() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit}>
+        {/* 2-col desktop layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.9fr] gap-6 items-start">
+
+          {/* LEFT: basic info + product list */}
+          <div className="space-y-5">
 
         {/* ── Bölüm 1: Teklif Bilgileri ── */}
         <Section index={1} icon={<Info className="w-3.5 h-3.5" />} title="Teklif Bilgileri">
@@ -366,6 +371,11 @@ export default function NewRfqPage() {
             </button>
           </div>
         </Section>
+
+          </div>{/* end left column */}
+
+          {/* RIGHT: suppliers + submit */}
+          <div className="space-y-5">
 
         {/* ── Bölüm 3: Tedarikçiler ── */}
         <Section
@@ -558,6 +568,9 @@ export default function NewRfqPage() {
             {saving ? "Oluşturuluyor..." : "Teklif Oluştur ve Gönder"}
           </button>
         </div>
+
+          </div>{/* end right column */}
+        </div>{/* end 2-col grid */}
       </form>
     </div>
   );

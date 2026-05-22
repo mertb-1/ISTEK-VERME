@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import RfqList, { RfqRow } from "./RfqList";
 import PageHeader from "@/components/PageHeader";
+import { FileSpreadsheet, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -31,20 +32,31 @@ export default async function RfqListPage() {
   }));
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
       <PageHeader
         eyebrow="SATIN ALMA · TEKLİF TALEPLERİ"
         title="Teklif"
         accentWord="kütüğü."
         description="Filonuza giden tüm teklif talepleri ve durumları."
         action={
-          <Link
-            href="/rfq/new"
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded"
-            style={{ background: "#111", color: "#fff" }}
-          >
-            + Yeni Teklif
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/rfq/new/upload"
+              className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors hover:bg-[#fef5e4]"
+              style={{ background: "#fff", color: "#111", border: "1px solid #e6ddd4" }}
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: "#7a6e67" }} />
+              Excel&apos;den
+            </Link>
+            <Link
+              href="/rfq/new"
+              className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-90"
+              style={{ background: "#111", color: "#fff" }}
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Talep
+            </Link>
+          </div>
         }
       />
       <RfqList rfqs={rows} />
