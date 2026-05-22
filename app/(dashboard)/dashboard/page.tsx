@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, FileText, Users, Clock, TrendingUp, ShoppingBag } from "lucide-react";
+import { AlertTriangle, ArrowRight, FileText, Users, Clock, TrendingUp, ShoppingBag, Plus } from "lucide-react";
 import ActivityFeed, { ActivityItem } from "./ActivityFeed";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
@@ -15,17 +15,19 @@ export default async function DashboardPage() {
 
   const now = new Date();
   const in14Days = new Date(now.getTime() + 14 * 86400000);
-
   const [
     { count: rfqCount },
+    { count: openRfqCount },
     { count: supplierCount },
     { data: recentRfqs },
     { data: buyer },
     { data: buyerRfqIds },
     { data: upcomingDeadlines },
     { data: recentOrders },
+    { count: pendingOrderCount },
   ] = await Promise.all([
     supabase.from("rfqs").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id),
+    supabase.from("rfqs").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id).eq("status", "open"),
     supabase.from("suppliers").select("*", { count: "exact", head: true }).eq("buyer_id", user!.id),
     supabase.from("rfqs").select("id, title, status, created_at, deadline").eq("buyer_id", user!.id).order("created_at", { ascending: false }).limit(10),
     supabase.from("buyers").select("company_name, full_name").eq("id", user!.id).single(),
@@ -45,6 +47,11 @@ export default async function DashboardPage() {
       .eq("buyer_id", user!.id)
       .order("created_at", { ascending: false })
       .limit(3),
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("buyer_id", user!.id)
+      .eq("status", "pending_confirmation"),
   ]);
 
   const rfqIdList = (buyerRfqIds ?? []).map((r: { id: string }) => r.id);
@@ -116,9 +123,11 @@ export default async function DashboardPage() {
   const today = new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase();
 
   const awaiting = awaitingCount ?? 0;
+  const openRfqs = openRfqCount ?? 0;
+  const pendingOrders = pendingOrderCount ?? 0;
 
   return (
-    <div className="p-8 w-full max-w-7xl">
+    <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
       {/* Header */}
       <PageHeader
         eyebrow={today}
@@ -126,6 +135,33 @@ export default async function DashboardPage() {
         accentWord="panosu."
         description={`${rfqCount ?? 0} teklif talebi · ${supplierCount ?? 0} kayıtlı tedarikçi`}
       />
+
+      {/* 4 KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard
+          label="AÇIK TALEPLERİ"
+          value={openRfqs}
+          sub="devam eden teklif süreci"
+          variant={openRfqs > 0 ? "default" : "default"}
+        />
+        <StatCard
+          label="CEVAP BEKLEYEN"
+          value={awaiting}
+          sub="tedarikçi henüz yanıtlamadı"
+          variant={awaiting > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="ONAY BEKLİYOR"
+          value={pendingOrders}
+          sub="tedarikçi onayı bekleniyor"
+          variant={pendingOrders > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="TEDARİKÇİ"
+          value={supplierCount ?? 0}
+          sub="kayıtlı firma"
+        />
+      </div>
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -135,7 +171,7 @@ export default async function DashboardPage() {
           style={{ background: "#111", color: "#fff" }}
         >
           <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
-            <span className="text-white text-xl font-bold leading-none">+</span>
+            <Plus className="w-4 h-4 text-white" />
           </div>
           <div>
             <div className="text-sm font-semibold text-white">Yeni Teklif Talebi</div>
@@ -158,28 +194,8 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <StatCard
-          label="TOPLAM TEKLİF"
-          value={rfqCount ?? 0}
-          sub="oluşturulan teklif talebi"
-        />
-        <StatCard
-          label="TEDARİKÇİ"
-          value={supplierCount ?? 0}
-          sub="kayıtlı firma"
-        />
-        <StatCard
-          label="CEVAP BEKLEYEN"
-          value={awaiting}
-          sub="tedarikçi henüz yanıtlamadı"
-          variant={awaiting > 0 ? "warning" : "default"}
-        />
-      </div>
-
-      {/* Three-column: RFQs | Activity | Widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.1fr_0.9fr] gap-6">
+      {/* Main 3-col: RFQs | ActivityFeed | Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_0.85fr] gap-6 items-start">
         {/* Recent RFQs */}
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
@@ -254,142 +270,141 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Middle column: Activity feed */}
+        {/* Activity feed */}
         <ActivityFeed items={feed} />
 
-        {/* Right column: Operational widgets */}
+        {/* Right column: operational widgets stacked */}
         <div className="flex flex-col gap-4">
-          {/* Deadline Yaklaşanlar */}
-          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-            <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
-              <Clock className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
-              <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>DEADLINE YAKLAŞANLAR</h2>
-            </div>
-            {!upcomingDeadlines || upcomingDeadlines.length === 0 ? (
-              <p className="px-5 py-4 text-xs" style={{ color: "#b0a49e" }}>
-                Önümüzdeki 14 günde son tarihi yaklaşan açık talep yok.
-              </p>
-            ) : (
-              <ul>
-                {upcomingDeadlines.map((rfq, idx) => {
-                  const deadline = new Date(rfq.deadline!);
-                  const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / 86400000);
-                  const isUrgent = daysLeft <= 3;
-                  const isLast = idx === upcomingDeadlines.length - 1;
-                  return (
-                    <li key={rfq.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
-                      <Link
-                        href={`/rfq/${rfq.id}`}
-                        className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-[#fef5e4]"
-                      >
-                        <div className="flex-1 min-w-0 mr-3">
-                          <div className="text-xs font-medium truncate" style={{ color: "#111" }}>{rfq.title}</div>
-                          <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
-                            {deadline.toLocaleDateString("tr-TR")}
-                          </div>
-                        </div>
-                        <span
-                          className="text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0"
-                          style={
-                            isUrgent
-                              ? { background: "#fdf0ee", color: "#8b3a2a" }
-                              : { background: "#fef5e4", color: "#a06a00" }
-                          }
-                        >
-                          {daysLeft} gün
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+        {/* Deadline Yaklaşanlar */}
+        <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+            <Clock className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
+            <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>DEADLINE YAKLAŞANLAR</h2>
           </div>
+          {!upcomingDeadlines || upcomingDeadlines.length === 0 ? (
+            <p className="px-5 py-4 text-xs" style={{ color: "#b0a49e" }}>
+              Önümüzdeki 14 günde son tarihi yaklaşan açık talep yok.
+            </p>
+          ) : (
+            <ul>
+              {upcomingDeadlines.map((rfq, idx) => {
+                const deadline = new Date(rfq.deadline!);
+                const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / 86400000);
+                const isUrgent = daysLeft <= 3;
+                const isLast = idx === upcomingDeadlines.length - 1;
+                return (
+                  <li key={rfq.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
+                    <Link
+                      href={`/rfq/${rfq.id}`}
+                      className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-[#fef5e4]"
+                    >
+                      <div className="flex-1 min-w-0 mr-3">
+                        <div className="text-xs font-medium truncate" style={{ color: "#111" }}>{rfq.title}</div>
+                        <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
+                          {deadline.toLocaleDateString("tr-TR")}
+                        </div>
+                      </div>
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0"
+                        style={
+                          isUrgent
+                            ? { background: "#fdf0ee", color: "#8b3a2a" }
+                            : { background: "#fef5e4", color: "#a06a00" }
+                        }
+                      >
+                        {daysLeft} gün
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
-          {/* Yanıt Oranı */}
-          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-            <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
-              <TrendingUp className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
-              <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>YANIT ORANI</h2>
-            </div>
-            <div className="px-5 py-4">
-              {total === 0 ? (
-                <p className="text-xs" style={{ color: "#b0a49e" }}>Henüz gönderilmiş teklif talebi yok.</p>
-              ) : (
-                <div className="flex items-end gap-4">
-                  <div>
-                    <div className="text-3xl font-bold" style={{ color: "#111", letterSpacing: "-0.03em" }}>
-                      {responseRate ?? 0}
-                      <span className="text-lg font-semibold ml-0.5" style={{ color: "#7a6e67" }}>%</span>
-                    </div>
-                    <p className="text-xs mt-1" style={{ color: "#b0a49e" }}>
-                      {responded} / {total} tedarikçi yanıtladı
-                    </p>
+        {/* Yanıt Oranı */}
+        <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+            <TrendingUp className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
+            <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>YANIT ORANI</h2>
+          </div>
+          <div className="px-5 py-4">
+            {total === 0 ? (
+              <p className="text-xs" style={{ color: "#b0a49e" }}>Henüz gönderilmiş teklif talebi yok.</p>
+            ) : (
+              <div className="flex items-end gap-4">
+                <div>
+                  <div className="text-3xl font-bold" style={{ color: "#111", letterSpacing: "-0.03em" }}>
+                    {responseRate ?? 0}
+                    <span className="text-lg font-semibold ml-0.5" style={{ color: "#7a6e67" }}>%</span>
                   </div>
-                  {/* Bar */}
-                  <div className="flex-1 mb-1">
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: "#f0e9e2" }}>
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${responseRate ?? 0}%`, background: responseRate !== null && responseRate >= 60 ? "#1a7a3a" : "#8b3a2a" }}
-                      />
-                    </div>
+                  <p className="text-xs mt-1" style={{ color: "#b0a49e" }}>
+                    {responded} / {total} tedarikçi yanıtladı
+                  </p>
+                </div>
+                <div className="flex-1 mb-1">
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "#f0e9e2" }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${responseRate ?? 0}%`, background: responseRate !== null && responseRate >= 60 ? "#1a7a3a" : "#8b3a2a" }}
+                    />
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Son Siparişler */}
-          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-            <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
-                <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>SON SİPARİŞLER</h2>
               </div>
-              <Link href="/orders" className="text-xs font-medium transition-opacity hover:opacity-70" style={{ color: "#7a6e67" }}>
-                Tümü →
-              </Link>
-            </div>
-            {!recentOrders || recentOrders.length === 0 ? (
-              <p className="px-5 py-4 text-xs" style={{ color: "#b0a49e" }}>Henüz sipariş oluşturulmadı.</p>
-            ) : (
-              <ul>
-                {recentOrders.map((order, idx) => {
-                  const rfqTitle = order.rfqs
-                    ? ((Array.isArray(order.rfqs) ? order.rfqs[0] : order.rfqs) as { title: string } | null)?.title
-                    : undefined;
-                  const isLast = idx === recentOrders.length - 1;
-                  return (
-                    <li key={order.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
-                      <Link
-                        href={`/orders/${order.id}`}
-                        className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-[#fef5e4]"
-                      >
-                        <div className="flex-1 min-w-0 mr-3">
-                          <div className="text-xs font-medium truncate" style={{ color: "#111" }}>
-                            {rfqTitle ?? "Sipariş"}
-                          </div>
-                          <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
-                            {new Date(order.created_at).toLocaleDateString("tr-TR")}
-                            {order.confirmed_amount != null && (
-                              <span> · {Number(order.confirmed_amount).toLocaleString("tr-TR")} USD</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <StatusBadge status={order.status} dot={false} />
-                          <ArrowRight className="w-3.5 h-3.5" style={{ color: "#d0c8c0" }} />
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
             )}
           </div>
         </div>
-      </div>
+
+        {/* Son Siparişler */}
+        <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-3.5 h-3.5" style={{ color: "#8b3a2a" }} />
+              <h2 className="text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>SON SİPARİŞLER</h2>
+            </div>
+            <Link href="/orders" className="text-xs font-medium transition-opacity hover:opacity-70" style={{ color: "#7a6e67" }}>
+              Tümü →
+            </Link>
+          </div>
+          {!recentOrders || recentOrders.length === 0 ? (
+            <p className="px-5 py-4 text-xs" style={{ color: "#b0a49e" }}>Henüz sipariş oluşturulmadı.</p>
+          ) : (
+            <ul>
+              {recentOrders.map((order, idx) => {
+                const rfqTitle = order.rfqs
+                  ? ((Array.isArray(order.rfqs) ? order.rfqs[0] : order.rfqs) as { title: string } | null)?.title
+                  : undefined;
+                const isLast = idx === recentOrders.length - 1;
+                return (
+                  <li key={order.id} style={!isLast ? { borderBottom: "1px solid #f0e8e0" } : undefined}>
+                    <Link
+                      href={`/orders/${order.id}`}
+                      className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-[#fef5e4]"
+                    >
+                      <div className="flex-1 min-w-0 mr-3">
+                        <div className="text-xs font-medium truncate" style={{ color: "#111" }}>
+                          {rfqTitle ?? "Sipariş"}
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
+                          {new Date(order.created_at).toLocaleDateString("tr-TR")}
+                          {order.confirmed_amount != null && (
+                            <span> · {Number(order.confirmed_amount).toLocaleString("tr-TR")} USD</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <StatusBadge status={order.status} dot={false} />
+                        <ArrowRight className="w-3.5 h-3.5" style={{ color: "#d0c8c0" }} />
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        </div>{/* end right widgets column */}
+      </div>{/* end main 3-col grid */}
     </div>
   );
 }
