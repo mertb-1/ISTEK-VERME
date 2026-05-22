@@ -178,8 +178,8 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Two-column: recent RFQs + right sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Three-column: RFQs | Activity | Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent RFQs */}
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
@@ -254,11 +254,11 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Right column */}
-        <div className="flex flex-col gap-4">
-          {/* Activity feed */}
-          <ActivityFeed items={feed} />
+        {/* Middle column: Activity feed */}
+        <ActivityFeed items={feed} />
 
+        {/* Right column: Operational widgets */}
+        <div className="flex flex-col gap-4">
           {/* Deadline Yaklaşanlar */}
           <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
             <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
