@@ -30,7 +30,6 @@ function getInitials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-
 function formatPrice(n: number | null | undefined) {
   if (!n) return "—";
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
@@ -48,13 +47,11 @@ export default function RfqDetail({
   const respondedRecipients = recipients.filter((r) => r.quotes && r.quotes.length > 0);
   const pendingRecipients = recipients.filter((r) => !r.quotes || r.quotes.length === 0);
 
-  // Award state — başlangıç değeri veritabanından gelen rfq.awarded_recipient_id
   const [awardedRecipientId, setAwardedRecipientId] = useState<string | null>(rfq.awarded_recipient_id);
   const [awardedOrderId, setAwardedOrderId] = useState<string | null>(
     recipients.find((r) => r.order_id)?.order_id ?? null
   );
 
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogRecipient, setDialogRecipient] = useState<Recipient | null>(null);
   const [poNote, setPoNote] = useState("");
@@ -138,11 +135,11 @@ export default function RfqDetail({
   }
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
       {/* Breadcrumb + header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center gap-1.5 mb-3">
-          <Link href="/rfq" className="text-xs tracking-widest transition-colors" style={{ color: "#b0a49e", letterSpacing: "0.1em" }}>
+          <Link href="/rfq" className="text-xs tracking-widest transition-colors hover:text-[#111]" style={{ color: "#b0a49e", letterSpacing: "0.1em" }}>
             TEKLİFLER
           </Link>
           <span className="text-xs" style={{ color: "#d0c8c0" }}>/</span>
@@ -168,10 +165,10 @@ export default function RfqDetail({
                 {isOpen ? "Açık" : "Kapalı"}
               </span>
             </div>
-            <h1 className="font-display text-4xl leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}>
+            <h1 className="text-3xl font-semibold leading-tight mb-2" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#111" }}>
               {rfq.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
                 Oluşturuldu: {new Date(rfq.created_at).toLocaleDateString("tr-TR")}
               </span>
@@ -206,7 +203,7 @@ export default function RfqDetail({
         const awardedSupplier = awardedR ? getSupplier(awardedR) : null;
         return (
           <div
-            className="flex items-center justify-between gap-4 px-5 py-4 rounded-xl mb-6"
+            className="flex items-center justify-between gap-4 px-5 py-4 rounded-xl mb-5"
             style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}
           >
             <div className="flex items-center gap-3">
@@ -234,8 +231,8 @@ export default function RfqDetail({
 
       {/* Pending suppliers */}
       {pendingRecipients.length > 0 && (
-        <div className="rounded-xl px-5 py-4 mb-6" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-          <div className="flex items-center gap-2 mb-3">
+        <div className="rounded-xl px-5 py-3.5 mb-5" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+          <div className="flex items-center gap-2 mb-2.5">
             <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#b0a49e" }} />
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b0a49e" }}>
               Cevap Bekleniyor · {pendingRecipients.length} tedarikçi
@@ -279,17 +276,17 @@ export default function RfqDetail({
       ) : (
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
           {/* Table toolbar */}
-          <div className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap" style={{ borderBottom: "1px solid #e6ddd4" }}>
+          <div className="px-5 py-3.5 flex items-center justify-between gap-4 flex-wrap" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
             <div className="flex items-center gap-3">
-              <h2 className="font-semibold text-sm" style={{ color: "#111" }}>KARŞILAŞTIRMA TABLOSU</h2>
-              <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
-                {respondedRecipients.length}/{recipients.length} tedarikçi yanıtladı
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#7a6e67" }}>Karşılaştırma Tablosu</span>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#e6ddd4", color: "#7a6e67" }}>
+                {respondedRecipients.length}/{recipients.length} yanıtladı
               </span>
             </div>
             {cheapestMixTotal > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded" style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}>
-                <Trophy className="w-4 h-4" style={{ color: "#1a7a3a" }} />
-                <span className="text-sm" style={{ color: "#1a7a3a" }}>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}>
+                <Trophy className="w-3.5 h-3.5" style={{ color: "#1a7a3a" }} />
+                <span className="text-xs" style={{ color: "#1a7a3a" }}>
                   En ucuz karma: <span className="font-bold">{formatPrice(cheapestMixTotal)}</span>
                 </span>
               </div>
@@ -300,30 +297,44 @@ export default function RfqDetail({
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr style={{ background: "#faf4ee", borderBottom: "1px solid #e6ddd4" }}>
-                  <th className="text-left px-5 py-4 font-medium min-w-[220px] sticky left-0 z-10" style={{ color: "#7a6e67", background: "#faf4ee", borderRight: "1px solid #e6ddd4" }}>
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      Ürün
-                    </div>
+                <tr style={{ borderBottom: "1px solid #e6ddd4" }}>
+                  {/* Product column header */}
+                  <th
+                    className="text-left px-5 py-3 min-w-[220px] sticky left-0 z-10"
+                    style={{ background: "#faf4ee", borderRight: "1px solid #e6ddd4" }}
+                  >
+                    <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#7a6e67" }}>Ürün</span>
                   </th>
+
+                  {/* Responded supplier headers */}
                   {respondedRecipients.map((r) => {
                     const s = getSupplier(r);
                     const isOverallCheapest = cheapestSupplierRecipient?.id === r.id;
                     const isAwarded = awardedRecipientId === r.id;
                     return (
-                      <th key={r.id} className="text-center px-4 py-3 min-w-[180px]" style={{
-                        borderRight: "1px solid #e6ddd4",
-                        background: isAwarded ? "#edf8f1" : undefined,
-                      }}>
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
+                      <th
+                        key={r.id}
+                        className="px-4 py-3 min-w-[176px]"
+                        style={{
+                          borderRight: "1px solid #e6ddd4",
+                          background: isAwarded ? "#edf8f1" : "#faf4ee",
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {/* Supplier card inside header */}
+                        <div className="flex flex-col items-center gap-1.5 pt-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                              style={{ background: "#f5ede6", color: "#8b3a2a" }}
+                            >
                               {getInitials(s?.company_name ?? "?")}
                             </div>
-                            <span className="font-semibold text-sm" style={{ color: "#111" }}>{s?.company_name}</span>
+                            <span className="font-semibold text-sm leading-snug" style={{ color: "#111" }}>
+                              {s?.company_name}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-1 flex-wrap justify-center">
+                          <div className="flex flex-wrap items-center justify-center gap-1">
                             {isAwarded && (
                               <span className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#edf8f1", color: "#1a7a3a" }}>
                                 <CheckCircle className="w-3 h-3" />
@@ -337,25 +348,37 @@ export default function RfqDetail({
                               </span>
                             )}
                             {r.quotes?.[0]?.delivery_time && (
-                              <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>{r.quotes[0].delivery_time}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                                {r.quotes[0].delivery_time}
+                              </span>
                             )}
                             {r.quotes?.[0]?.payment_terms && (
-                              <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>{r.quotes[0].payment_terms}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                                {r.quotes[0].payment_terms}
+                              </span>
                             )}
                           </div>
                         </div>
                       </th>
                     );
                   })}
+
+                  {/* Pending supplier headers */}
                   {pendingRecipients.map((r) => {
                     const s = getSupplier(r);
                     return (
-                      <th key={r.id} className="text-center px-4 py-3 min-w-[140px]" style={{ borderRight: "1px solid #e6ddd4", opacity: 0.4 }}>
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: "#f5f0eb", color: "#b0a49e" }}>
-                            {getInitials(s?.company_name ?? "?")}
+                      <th
+                        key={r.id}
+                        className="px-4 py-3 min-w-[140px]"
+                        style={{ borderRight: "1px solid #e6ddd4", background: "#faf4ee", opacity: 0.45, verticalAlign: "top" }}
+                      >
+                        <div className="flex flex-col items-center gap-1.5 pt-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: "#f5f0eb", color: "#b0a49e" }}>
+                              {getInitials(s?.company_name ?? "?")}
+                            </div>
+                            <span className="font-medium text-sm" style={{ color: "#7a6e67" }}>{s?.company_name}</span>
                           </div>
-                          <span className="font-medium text-sm" style={{ color: "#7a6e67" }}>{s?.company_name}</span>
                           <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
                             <Clock className="w-3 h-3" />
                             Bekleniyor
@@ -372,11 +395,15 @@ export default function RfqDetail({
                   const minPrice = getMinPriceForItem(item.id);
                   const isEven = rowIdx % 2 === 0;
                   return (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #f0e8e0", background: isEven ? "#fff" : "#faf4ee" }}>
-                      <td className="px-5 py-4 sticky left-0 z-10" style={{ borderRight: "1px solid #e6ddd4", background: isEven ? "#fff" : "#faf4ee" }}>
-                        <div className="font-medium leading-snug" style={{ color: "#111" }}>{item.product_name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                    <tr key={item.id} style={{ borderBottom: "1px solid #f0e8e0", background: isEven ? "#fff" : "#fdfaf7" }}>
+                      {/* Sticky product column */}
+                      <td
+                        className="px-5 py-3 sticky left-0 z-10"
+                        style={{ borderRight: "1px solid #e6ddd4", background: isEven ? "#fff" : "#fdfaf7" }}
+                      >
+                        <div className="font-medium text-sm leading-snug" style={{ color: "#111" }}>{item.product_name}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
                             {item.quantity} {item.unit}
                           </span>
                           {item.brand && (
@@ -385,6 +412,7 @@ export default function RfqDetail({
                         </div>
                       </td>
 
+                      {/* Price cells for responded suppliers */}
                       {respondedRecipients.map((r) => {
                         const qi = getPriceForItem(r, item.id);
                         const isCheapest = qi && minPrice !== null && qi.unit_price === minPrice;
@@ -396,25 +424,25 @@ export default function RfqDetail({
                         return (
                           <td
                             key={r.id}
-                            className="px-4 py-4 text-center"
+                            className="px-4 py-3 text-center"
                             style={{
                               borderRight: "1px solid #f0e8e0",
-                              background: isAwarded ? "#edf8f1" : isCheapest ? "#edf8f1" : "transparent",
-                              opacity: awardedRecipientId && !isAwarded ? 0.45 : 1,
+                              background: isAwarded ? "#f0fbf4" : isCheapest ? "#f0fbf4" : "transparent",
+                              opacity: awardedRecipientId && !isAwarded ? 0.4 : 1,
                             }}
                           >
                             {qi ? (
                               <div className="space-y-1">
-                                <div className="text-base font-bold tabular-nums" style={{ color: isCheapest ? "#1a7a3a" : "#111" }}>
+                                <div className="text-base font-bold tabular-nums leading-none" style={{ color: isCheapest ? "#1a7a3a" : "#111" }}>
                                   {formatPrice(qi.unit_price)}
                                   {isCheapest && respondedRecipients.length > 1 && (
-                                    <span className="ml-1.5 inline-flex items-center" style={{ color: "#1a7a3a" }}>
-                                      <CheckCircle className="w-3.5 h-3.5" />
+                                    <span className="ml-1 inline-flex items-center" style={{ color: "#1a7a3a" }}>
+                                      <CheckCircle className="w-3 h-3" />
                                     </span>
                                   )}
                                 </div>
                                 <div className="text-xs tabular-nums" style={{ color: "#b0a49e" }}>
-                                  Toplam: {formatPrice(qi.unit_price * item.quantity)}
+                                  = {formatPrice(qi.unit_price * item.quantity)}
                                 </div>
                                 {qi.offered_brand && (
                                   <div
@@ -426,7 +454,7 @@ export default function RfqDetail({
                                     {brandMismatch ? (
                                       <><AlertTriangle className="w-3 h-3" /> {qi.offered_brand}</>
                                     ) : (
-                                      <><CheckCircle className="w-3 h-3" style={{ color: "#b0a49e" }} /> {qi.offered_brand}</>
+                                      <>{qi.offered_brand}</>
                                     )}
                                   </div>
                                 )}
@@ -435,63 +463,75 @@ export default function RfqDetail({
                                 )}
                               </div>
                             ) : (
-                              <span style={{ color: "#d0c8c0", fontSize: 18 }}>—</span>
+                              <span style={{ color: "#d0c8c0" }}>—</span>
                             )}
                           </td>
                         );
                       })}
 
                       {pendingRecipients.map((r) => (
-                        <td key={r.id} className="px-4 py-4 text-center opacity-30" style={{ borderRight: "1px solid #f0e8e0" }}>
-                          <span style={{ color: "#b0a49e", fontSize: 18 }}>—</span>
+                        <td key={r.id} className="px-4 py-3 text-center opacity-25" style={{ borderRight: "1px solid #f0e8e0" }}>
+                          <span style={{ color: "#b0a49e" }}>—</span>
                         </td>
                       ))}
                     </tr>
                   );
                 })}
 
-                {/* TOPLAM row */}
+                {/* TOPLAM row — visually heavier */}
                 <tr style={{ borderTop: "2px solid #e6ddd4", background: "#faf4ee" }}>
                   <td className="px-5 py-4 sticky left-0 z-10" style={{ background: "#faf4ee", borderRight: "1px solid #e6ddd4" }}>
                     <div className="font-bold text-sm uppercase tracking-wider" style={{ color: "#111" }}>Toplam</div>
-                    <div className="text-xs mt-0.5 font-normal" style={{ color: "#7a6e67" }}>Tedarikçi toplamı</div>
+                    <div className="text-xs mt-0.5" style={{ color: "#7a6e67" }}>Tedarikçi toplamı</div>
                   </td>
                   {respondedRecipients.map((r) => {
                     const total = r.quotes?.[0]?.total_amount;
                     const isOverallCheapest = cheapestSupplierRecipient?.id === r.id && respondedRecipients.length > 1;
                     const isAwarded = awardedRecipientId === r.id;
                     return (
-                      <td key={r.id} className="px-4 py-4 text-center" style={{
-                        borderRight: "1px solid #f0e8e0",
-                        background: isAwarded ? "#edf8f1" : isOverallCheapest ? "#edf8f1" : "transparent",
-                        opacity: awardedRecipientId && !isAwarded ? 0.45 : 1,
-                      }}>
-                        <div className="text-xl font-bold tabular-nums" style={{ color: isOverallCheapest ? "#1a7a3a" : "#111" }}>
+                      <td
+                        key={r.id}
+                        className="px-4 py-4 text-center"
+                        style={{
+                          borderRight: "1px solid #e6ddd4",
+                          background: isAwarded ? "#e3f5eb" : isOverallCheapest ? "#e3f5eb" : "#faf4ee",
+                          opacity: awardedRecipientId && !isAwarded ? 0.4 : 1,
+                        }}
+                      >
+                        <div
+                          className="text-2xl font-bold tabular-nums leading-none"
+                          style={{ color: isOverallCheapest ? "#1a7a3a" : "#111" }}
+                        >
                           {formatPrice(total)}
                         </div>
                         {isOverallCheapest && !isAwarded && (
-                          <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded" style={{ background: "#fef5e4", color: "#a06a00" }}>
+                          <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "#fef5e4", color: "#a06a00" }}>
                             <Trophy className="w-3 h-3" />
                             En ucuz
+                          </div>
+                        )}
+                        {isAwarded && (
+                          <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "#d4f0de", color: "#1a7a3a" }}>
+                            <CheckCircle className="w-3 h-3" />
+                            Seçildi
                           </div>
                         )}
                       </td>
                     );
                   })}
                   {pendingRecipients.map((r) => (
-                    <td key={r.id} className="px-4 py-4 text-center opacity-30" style={{ borderRight: "1px solid #f0e8e0" }}>
+                    <td key={r.id} className="px-4 py-4 text-center opacity-25" style={{ borderRight: "1px solid #e6ddd4", background: "#faf4ee" }}>
                       <span style={{ color: "#b0a49e" }}>—</span>
                     </td>
                   ))}
                 </tr>
-
               </tbody>
             </table>
           </div>
 
           {/* Supplier notes */}
           {respondedRecipients.some((r) => r.quotes?.[0]?.supplier_notes) && (
-            <div className="px-6 py-5" style={{ borderTop: "1px solid #e6ddd4", background: "#faf4ee" }}>
+            <div className="px-5 py-4" style={{ borderTop: "1px solid #e6ddd4", background: "#faf4ee" }}>
               <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#7a6e67" }}>Tedarikçi Notları</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {respondedRecipients.map((r) => {
@@ -510,7 +550,7 @@ export default function RfqDetail({
 
           {/* Cheapest mix summary */}
           {cheapestMixTotal > 0 && respondedRecipients.length > 1 && (
-            <div className="px-6 py-5" style={{ borderTop: "1px solid #e6ddd4", background: "#fff" }}>
+            <div className="px-5 py-4" style={{ borderTop: "1px solid #e6ddd4" }}>
               <div className="rounded-xl px-5 py-4" style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -524,16 +564,16 @@ export default function RfqDetail({
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col items-start sm:items-end gap-1 sm:pl-4 flex-shrink-0">
+                  <div className="flex flex-col items-start sm:items-end gap-1.5 sm:pl-4 flex-shrink-0">
                     <span className="text-2xl font-bold tabular-nums" style={{ color: "#1a7a3a" }}>
                       {formatPrice(cheapestMixTotal)}
                     </span>
                     <div className="flex flex-wrap gap-1">
                       {items.map((item) => {
-                        const minPrice = getMinPriceForItem(item.id);
-                        if (!minPrice) return null;
+                        const minP = getMinPriceForItem(item.id);
+                        if (!minP) return null;
                         const cheapestR = respondedRecipients.find(
-                          (r) => getPriceForItem(r, item.id)?.unit_price === minPrice
+                          (r) => getPriceForItem(r, item.id)?.unit_price === minP
                         );
                         const supplierName = cheapestR ? getSupplier(cheapestR)?.company_name : null;
                         return (
@@ -550,12 +590,12 @@ export default function RfqDetail({
             </div>
           )}
 
-          {/* Select supplier row */}
-          <div className="px-6 py-5" style={{ borderTop: "2px solid #e6ddd4", background: "#faf4ee" }}>
-            <div className="flex items-center gap-3 overflow-x-auto pb-1">
-              <span className="text-sm font-medium flex-shrink-0" style={{ color: "#7a6e67" }}>
-                {awardedRecipientId ? "Sipariş verildi:" : "Tedarikçi seç:"}
-              </span>
+          {/* Award action row */}
+          <div className="px-5 py-5" style={{ borderTop: "2px solid #e6ddd4", background: "#faf4ee" }}>
+            <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#7a6e67" }}>
+              {awardedRecipientId ? "Sipariş Verildi" : "Tedarikçi Seç"}
+            </div>
+            <div className="flex items-center gap-2.5 flex-wrap">
               {respondedRecipients.map((r) => {
                 const s = getSupplier(r);
                 const isOverallCheapest = cheapestSupplierRecipient?.id === r.id && respondedRecipients.length > 1;
@@ -567,14 +607,15 @@ export default function RfqDetail({
                     <Link
                       key={r.id}
                       href={`/orders/${awardedOrderId}`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 transition-colors"
-                      style={{ background: "#1a7a3a", color: "#fff", border: "1px solid #1a7a3a" }}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold flex-shrink-0 transition-opacity hover:opacity-90"
+                      style={{ background: "#1a7a3a", color: "#fff" }}
                     >
-                      <CheckCircle className="w-3.5 h-3.5" />
+                      <CheckCircle className="w-4 h-4" />
                       {s?.company_name}
                       <span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.7)" }}>
                         {formatPrice(r.quotes?.[0]?.total_amount)}
                       </span>
+                      <ExternalLink className="w-3 h-3" style={{ color: "rgba(255,255,255,0.6)" }} />
                     </Link>
                   );
                 }
@@ -584,14 +625,17 @@ export default function RfqDetail({
                     key={r.id}
                     onClick={() => openAwardDialog(r)}
                     disabled={isDisabled}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium flex-shrink-0 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     style={isOverallCheapest
-                      ? { background: "#111", color: "#fff", borderColor: "#111" }
-                      : { background: "#fff", color: "#111", borderColor: "#e6ddd4" }}
+                      ? { background: "#111", color: "#fff", border: "1px solid #111" }
+                      : { background: "#fff", color: "#111", border: "1px solid #e6ddd4" }}
                   >
-                    {isOverallCheapest && <Trophy className="w-3.5 h-3.5" />}
+                    {isOverallCheapest && <Trophy className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.7)" }} />}
                     {s?.company_name}
-                    <span className="text-xs font-normal" style={{ color: isOverallCheapest ? "rgba(255,255,255,0.6)" : "#7a6e67" }}>
+                    <span
+                      className="text-xs font-normal tabular-nums"
+                      style={{ color: isOverallCheapest ? "rgba(255,255,255,0.6)" : "#7a6e67" }}
+                    >
                       {formatPrice(r.quotes?.[0]?.total_amount)}
                     </span>
                   </button>
@@ -614,7 +658,6 @@ export default function RfqDetail({
             const q = dialogRecipient.quotes?.[0];
             return (
               <div className="space-y-4 py-2">
-                {/* Özet */}
                 <div className="rounded-lg px-4 py-3 space-y-2 text-sm" style={{ background: "#f5f0eb" }}>
                   <div className="flex justify-between">
                     <span style={{ color: "#7a6e67" }}>Tedarikçi</span>
@@ -638,7 +681,6 @@ export default function RfqDetail({
                   )}
                 </div>
 
-                {/* Beklenen teslimat */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium" style={{ color: "#111" }}>
                     Beklenen Teslimat Tarihi <span style={{ color: "#b0a49e" }}>(opsiyonel)</span>
@@ -652,7 +694,6 @@ export default function RfqDetail({
                   />
                 </div>
 
-                {/* PO notu */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium" style={{ color: "#111" }}>
                     PO Notu <span style={{ color: "#b0a49e" }}>(opsiyonel)</span>
