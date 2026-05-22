@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Trash2, ChevronRight, ChevronDown, FileUp, UserPlus, X, Loader2 } from "lucide-react";
+import {
+  Plus, Trash2, ChevronRight, ChevronDown, FileUp,
+  UserPlus, X, Loader2, Package, Users, Info,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PhotoUploader from "@/components/PhotoUploader";
 
@@ -70,7 +73,6 @@ export default function NewRfqPage() {
       .then(({ data }) => setSuppliers(data ?? []));
   }, []);
 
-  // Dosya yükleme akışından gelen ürünleri yükle
   useEffect(() => {
     if (searchParams.get("source") !== "upload") return;
     try {
@@ -97,8 +99,6 @@ export default function NewRfqPage() {
       }));
       if (loaded.length > 0) setItems(loaded);
       setUploadMeta({ sourceType: payload.sourceType, sourceFileUrl: payload.sourceFileUrl });
-
-      // Pre-fill title and notes from extracted metadata
       if (payload.meta) {
         const { vessel, company, date, contact } = payload.meta;
         const titleParts = [vessel, payload.listType].filter(Boolean);
@@ -112,7 +112,7 @@ export default function NewRfqPage() {
       }
       localStorage.removeItem("rfq_upload_items");
     } catch {
-      // localStorage okunamazsa sessizce geç
+      /* localStorage okunamazsa sessizce geç */
     }
   }, [searchParams]);
 
@@ -170,7 +170,6 @@ export default function NewRfqPage() {
     if (validItems.length === 0) { setError("En az bir ürün eklemelisiniz."); return; }
     if (selectedSuppliers.size === 0) { setError("En az bir tedarikçi seçmelisiniz."); return; }
 
-    // IMPA format doğrulama
     for (const item of validItems) {
       if (item.impa_code && !/^\d{6}$/.test(item.impa_code)) {
         setError(`"${item.product_name}" için IMPA kodu 6 haneli sayı olmalıdır.`);
@@ -230,311 +229,206 @@ export default function NewRfqPage() {
     router.push(`/rfq/${rfq.id}`);
   };
 
+  const filledItemCount = items.filter((i) => i.product_name.trim()).length;
+
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="px-4 sm:px-6 py-6 max-w-3xl">
+
+      {/* Breadcrumb + başlık */}
       <div className="mb-8">
-        <div className="flex items-center gap-1.5 text-sm text-gray-400 mb-2">
-          <a href="/rfq" className="hover:text-gray-600 transition-colors">Tekliflerim</a>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-gray-600">Yeni Teklif</span>
+        <div className="flex items-center gap-1.5 text-xs mb-3" style={{ color: "#b0a49e" }}>
+          <a href="/rfq" className="hover:underline transition-colors" style={{ color: "#7a6e67" }}>Tekliflerim</a>
+          <ChevronRight className="w-3 h-3" />
+          <span>Yeni Teklif</span>
         </div>
+
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Yeni Teklif Oluştur</h1>
-            <p className="text-gray-500 mt-1">Ürün listesini doldurun, tedarikçileri seçin.</p>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#111" }}>Yeni Teklif Talebi</h1>
+            <p className="mt-1 text-sm" style={{ color: "#7a6e67" }}>
+              Ürünleri listeleyin, tedarikçileri seçin ve talepnizi gönderin.
+            </p>
           </div>
           <a
             href="/rfq/new/upload"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors flex-shrink-0"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-medium flex-shrink-0 transition-colors hover:bg-[#f5f0eb]"
+            style={{ borderColor: "#e6ddd4", color: "#7a6e67" }}
           >
-            <FileUp className="w-4 h-4" />
+            <FileUp className="w-3.5 h-3.5" />
             Dosyadan Yükle
           </a>
         </div>
+
         {uploadMeta && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-4 py-2.5 rounded-xl">
+          <div
+            className="mt-4 flex items-center gap-2.5 text-sm px-4 py-3 rounded-xl"
+            style={{ background: "#edf8f1", color: "#1a7a3a", border: "1px solid #b7e4c7" }}
+          >
             <FileUp className="w-4 h-4 flex-shrink-0" />
-            {items.length} ürün {uploadMeta.sourceType === "pdf" ? "PDF" : "Excel"} dosyasından yüklendi. Düzenleyip gönderebilirsiniz.
+            <span>
+              <strong>{items.length} ürün</strong>{" "}
+              {uploadMeta.sourceType === "pdf" ? "PDF" : "Excel"} dosyasından yüklendi.
+              Kontrol edip gönderebilirsiniz.
+            </span>
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Bölüm 1 */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
-            <h2 className="font-semibold text-gray-900">Teklif Bilgileri</h2>
-          </div>
-          <div className="p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* ── Bölüm 1: Teklif Bilgileri ── */}
+        <Section index={1} icon={<Info className="w-3.5 h-3.5" />} title="Teklif Bilgileri">
+          <div className="p-5 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Teklif Başlığı <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                Başlık <span style={{ color: "#8b3a2a" }}>*</span>
               </label>
               <input
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Örn: Marmara Gemisi — Haziran 2025"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm transition-shadow focus:outline-none focus:ring-2"
+                style={{
+                  border: "1px solid #e6ddd4",
+                  background: "#fff",
+                  color: "#111",
+                  focusRingColor: "#d4c5b8",
+                } as React.CSSProperties}
+                onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4")}
+                onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Son Tarih</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                  Son Cevap Tarihi
+                </label>
                 <input
                   type="date"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3.5 py-2.5 rounded-lg text-sm transition-shadow focus:outline-none"
+                  style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4")}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Notlar</label>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                  Notlar
+                </label>
                 <input
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ek bilgi..."
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ek bilgi, genel notlar..."
+                  className="w-full px-3.5 py-2.5 rounded-lg text-sm transition-shadow focus:outline-none"
+                  style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4")}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
                 />
               </div>
             </div>
           </div>
-        </div>
+        </Section>
 
-        {/* Bölüm 2 — Ürün Listesi */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
-            <h2 className="font-semibold text-gray-900">Ürün Listesi</h2>
-            <span className="ml-auto text-xs text-gray-400 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
-              {items.filter(i => i.product_name.trim()).length} ürün
-            </span>
-          </div>
-
-          <div className="divide-y divide-gray-100">
+        {/* ── Bölüm 2: Ürün Listesi ── */}
+        <Section
+          index={2}
+          icon={<Package className="w-3.5 h-3.5" />}
+          title="Ürün Listesi"
+          badge={filledItemCount > 0 ? `${filledItemCount} ürün` : undefined}
+        >
+          <div className="divide-y" style={{ borderColor: "#f0e9e2" }}>
             {items.map((item, idx) => (
-              <div key={idx}>
-                {/* Satır başlığı — her zaman görünür */}
-                <div className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/50">
-                  <span className="text-sm text-gray-400 font-medium w-5 flex-shrink-0">{idx + 1}</span>
-
-                  {/* Temel alanlar */}
-                  <input
-                    className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ürün adı *"
-                    value={item.product_name}
-                    onChange={(e) => updateItem(idx, "product_name", e.target.value)}
-                  />
-                  <input
-                    className="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hidden sm:block"
-                    placeholder="Marka"
-                    value={item.brand}
-                    onChange={(e) => updateItem(idx, "brand", e.target.value)}
-                  />
-                  <input
-                    className="w-20 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Miktar"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(idx, "quantity", e.target.value)}
-                    onWheel={(e) => e.currentTarget.blur()}
-                  />
-                  <select
-                    className="w-24 px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={item.unit}
-                    onChange={(e) => updateItem(idx, "unit", e.target.value)}
-                  >
-                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
-
-                  {/* Detay aç/kapa */}
-                  <button
-                    type="button"
-                    onClick={() => toggleExpand(idx)}
-                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50 flex-shrink-0"
-                    title="Detayları göster"
-                  >
-                    <ChevronDown className={`w-4 h-4 transition-transform ${item.expanded ? "rotate-180" : ""}`} />
-                    <span className="hidden sm:inline">Detay</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => removeItem(idx)}
-                    disabled={items.length === 1}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Genişletilmiş detaylar */}
-                {item.expanded && (
-                  <div className="px-5 pb-5 pt-2 bg-gray-50 border-t border-gray-100 space-y-4">
-                    {/* Mobilde marka buraya gelsin */}
-                    <div className="sm:hidden">
-                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Marka</label>
-                      <input
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Marka"
-                        value={item.brand}
-                        onChange={(e) => updateItem(idx, "brand", e.target.value)}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                          IMPA Kodu <span className="text-gray-400">(opsiyonel)</span>
-                        </label>
-                        <input
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Örn: 550101"
-                          value={item.impa_code}
-                          maxLength={6}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                            updateItem(idx, "impa_code", val);
-                          }}
-                        />
-                        {item.impa_code && item.impa_code.length < 6 && (
-                          <p className="text-xs text-amber-500 mt-1">{6 - item.impa_code.length} rakam daha</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                          Kısa Not <span className="text-gray-400">(opsiyonel)</span>
-                        </label>
-                        <input
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Kısa not..."
-                          value={item.description}
-                          onChange={(e) => updateItem(idx, "description", e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                        Detaylı Açıklama <span className="text-gray-400">(opsiyonel)</span>
-                      </label>
-                      <textarea
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder="Teknik özellikler, boyutlar, standartlar..."
-                        rows={3}
-                        value={item.detailed_description}
-                        onChange={(e) => updateItem(idx, "detailed_description", e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-2">
-                        Ürün Fotoğrafı <span className="text-gray-400">(opsiyonel)</span>
-                      </label>
-                      <PhotoUploader
-                        value={item.photos}
-                        onChange={(photos) => updateItem(idx, "photos", photos)}
-                        maxPhotos={5}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ItemRow
+                key={idx}
+                item={item}
+                idx={idx}
+                total={items.length}
+                onUpdate={updateItem}
+                onRemove={removeItem}
+                onToggle={toggleExpand}
+              />
             ))}
           </div>
 
-          <div className="px-5 py-3 border-t border-gray-100">
+          {/* Ürün Ekle butonu */}
+          <div className="px-5 py-3.5" style={{ borderTop: "1px solid #f0e9e2" }}>
             <button
               type="button"
               onClick={addItem}
-              className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-semibold transition-colors rounded-lg px-3 py-1.5 hover:bg-[#f5f0eb]"
+              style={{ color: "#8b3a2a" }}
             >
               <Plus className="w-4 h-4" />
               Ürün Ekle
             </button>
           </div>
-        </div>
+        </Section>
 
-        {/* Bölüm 3 — Tedarikçi Seçimi */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
-            <h2 className="font-semibold text-gray-900">Tedarikçi Seçimi</h2>
-            {selectedSuppliers.size > 0 && (
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                {selectedSuppliers.size} seçili
-              </span>
-            )}
+        {/* ── Bölüm 3: Tedarikçiler ── */}
+        <Section
+          index={3}
+          icon={<Users className="w-3.5 h-3.5" />}
+          title="Tedarikçiler"
+          badge={selectedSuppliers.size > 0 ? `${selectedSuppliers.size} seçili` : undefined}
+          action={
             <button
               type="button"
               onClick={() => { setShowAddSupplier((v) => !v); setAddSupplierError(""); }}
-              className="ml-auto flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              style={
+                showAddSupplier
+                  ? { background: "#f5f0eb", color: "#7a6e67" }
+                  : { background: "#f5f0eb", color: "#8b3a2a" }
+              }
             >
               {showAddSupplier ? <X className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
               {showAddSupplier ? "Vazgeç" : "Yeni Tedarikçi"}
             </button>
-          </div>
-
+          }
+        >
           {/* Inline tedarikçi ekleme formu */}
           {showAddSupplier && (
-            <div ref={newSupplierRef} className="px-6 py-4 bg-blue-50 border-b border-blue-100">
-              <p className="text-xs font-semibold text-blue-700 mb-3 uppercase tracking-wide">Yeni Tedarikçi Ekle</p>
+            <div ref={newSupplierRef} className="px-5 py-4" style={{ background: "#faf4ee", borderBottom: "1px solid #e6ddd4" }}>
+              <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "#8b3a2a" }}>
+                Yeni Tedarikçi
+              </p>
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Firma Adı *</label>
-                    <input
-                      type="text"
-                      required
-                      value={newSupplier.company_name}
-                      onChange={(e) => setNewSupplier((p) => ({ ...p, company_name: e.target.value }))}
-                      placeholder="Acme Denizcilik"
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">İletişim Kişisi</label>
-                    <input
-                      type="text"
-                      value={newSupplier.contact_name}
-                      onChange={(e) => setNewSupplier((p) => ({ ...p, contact_name: e.target.value }))}
-                      placeholder="Ali Yılmaz"
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">E-posta *</label>
-                    <input
-                      type="email"
-                      required
-                      value={newSupplier.email}
-                      onChange={(e) => setNewSupplier((p) => ({ ...p, email: e.target.value }))}
-                      placeholder="info@acme.com"
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Kategori</label>
-                    <input
-                      type="text"
-                      value={newSupplier.category}
-                      onChange={(e) => setNewSupplier((p) => ({ ...p, category: e.target.value }))}
-                      placeholder="Gıda, Yağ, Makine..."
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {[
+                    { label: "Firma Adı", key: "company_name", required: true, placeholder: "Acme Denizcilik", type: "text" },
+                    { label: "İletişim Kişisi", key: "contact_name", required: false, placeholder: "Ali Yılmaz", type: "text" },
+                    { label: "E-posta", key: "email", required: true, placeholder: "info@acme.com", type: "email" },
+                    { label: "Kategori", key: "category", required: false, placeholder: "Gıda, Yağ, Makine...", type: "text" },
+                  ].map(({ label, key, required, placeholder, type }) => (
+                    <div key={key}>
+                      <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                        {label}{required && <span style={{ color: "#8b3a2a" }}> *</span>}
+                      </label>
+                      <input
+                        type={type}
+                        value={newSupplier[key as keyof typeof newSupplier]}
+                        onChange={(e) => setNewSupplier((p) => ({ ...p, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none"
+                        style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+                        onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4")}
+                        onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
+                      />
+                    </div>
+                  ))}
                 </div>
                 {addSupplierError && (
-                  <p className="text-xs text-red-600">{addSupplierError}</p>
+                  <p className="text-xs font-medium" style={{ color: "#8b3a2a" }}>{addSupplierError}</p>
                 )}
                 <button
                   type="button"
                   onClick={handleAddSupplier}
                   disabled={addingSupplier}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+                  style={{ background: "#111" }}
                 >
                   {addingSupplier && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {addingSupplier ? "Ekleniyor..." : "Ekle ve Seç"}
@@ -543,16 +437,31 @@ export default function NewRfqPage() {
             </div>
           )}
 
-          <div className="p-6">
+          {/* Tedarikçi listesi */}
+          <div className="p-5">
             {suppliers.length === 0 && !showAddSupplier ? (
-              <div className="text-center py-8 text-gray-400">
-                <p className="mb-2">Henüz tedarikçi eklemediniz.</p>
+              /* Boş durum */
+              <div className="py-10 flex flex-col items-center gap-3 text-center">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ background: "#f5f0eb" }}
+                >
+                  <Users className="w-5 h-5" style={{ color: "#b0a49e" }} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "#111" }}>Henüz tedarikçi yok</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#7a6e67" }}>
+                    Sisteme kayıtlı tedarikçiniz bulunmuyor.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowAddSupplier(true)}
-                  className="text-blue-600 hover:underline text-sm font-medium"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                  style={{ background: "#f5f0eb", color: "#8b3a2a" }}
                 >
-                  Tedarikçi ekle →
+                  <UserPlus className="w-3.5 h-3.5" />
+                  İlk tedarikçiyi ekle
                 </button>
               </div>
             ) : (
@@ -562,27 +471,53 @@ export default function NewRfqPage() {
                   return (
                     <label
                       key={s.id}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      className="flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-pointer transition-all select-none"
+                      style={
                         selected
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      }`}
+                          ? { border: "1.5px solid #8b3a2a", background: "#fdf5f0" }
+                          : { border: "1.5px solid #e6ddd4", background: "#fff" }
+                      }
                     >
                       <input
                         type="checkbox"
                         checked={selected}
                         onChange={() => toggleSupplier(s.id)}
-                        className="rounded text-blue-600 focus:ring-blue-500"
+                        className="sr-only"
                       />
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                          selected ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
-                        }`}>
-                          {getInitials(s.company_name)}
+                      {/* Custom checkbox */}
+                      <div
+                        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                        style={
+                          selected
+                            ? { background: "#8b3a2a", border: "1.5px solid #8b3a2a" }
+                            : { background: "#fff", border: "1.5px solid #d4c5b8" }
+                        }
+                      >
+                        {selected && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 8">
+                            <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* Avatar */}
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors"
+                        style={
+                          selected
+                            ? { background: "#8b3a2a", color: "#fff" }
+                            : { background: "#f5ede6", color: "#8b3a2a" }
+                        }
+                      >
+                        {getInitials(s.company_name)}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold truncate" style={{ color: "#111" }}>
+                          {s.company_name}
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">{s.company_name}</div>
-                          {s.category && <div className="text-xs text-gray-400 truncate">{s.category}</div>}
+                        <div className="text-xs truncate mt-0.5" style={{ color: "#b0a49e" }}>
+                          {s.category || s.email}
                         </div>
                       </div>
                     </label>
@@ -591,30 +526,291 @@ export default function NewRfqPage() {
               </div>
             )}
           </div>
-        </div>
+        </Section>
 
+        {/* ── Hata mesajı ── */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+          <div
+            className="flex items-start gap-2.5 px-4 py-3.5 rounded-xl text-sm"
+            style={{ background: "#fdf0ee", color: "#8b3a2a", border: "1px solid #f0cec6" }}
+          >
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
             {error}
           </div>
         )}
 
-        <div className="flex items-center gap-3 justify-end">
+        {/* ── Eylem butonları ── */}
+        <div className="flex items-center gap-3 justify-end pt-1">
           <a
             href="/rfq"
-            className="px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-[#f5f0eb]"
+            style={{ color: "#7a6e67" }}
           >
             İptal
           </a>
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+            style={{ background: "#111" }}
           >
-            {saving ? "Oluşturuluyor..." : "Teklif Oluştur & Gönder"}
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving ? "Oluşturuluyor..." : "Teklif Oluştur ve Gönder"}
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+/* ── Section kapsayıcısı ── */
+function Section({
+  index,
+  icon,
+  title,
+  badge,
+  action,
+  children,
+}: {
+  index: number;
+  icon: React.ReactNode;
+  title: string;
+  badge?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #e6ddd4", background: "#fff" }}>
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-5 py-3.5"
+        style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}
+      >
+        <span
+          className="w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0"
+          style={{ background: "#111" }}
+        >
+          {index}
+        </span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "#111" }}>
+          {icon}
+          {title}
+        </span>
+        {badge && (
+          <span
+            className="text-xs font-medium px-2 py-0.5 rounded-full"
+            style={{ background: "#f5f0eb", color: "#8b3a2a" }}
+          >
+            {badge}
+          </span>
+        )}
+        {action && <div className="ml-auto">{action}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ── Ürün satırı ── */
+function ItemRow({
+  item,
+  idx,
+  total,
+  onUpdate,
+  onRemove,
+  onToggle,
+}: {
+  item: Item;
+  idx: number;
+  total: number;
+  onUpdate: <K extends keyof Item>(idx: number, field: K, value: Item[K]) => void;
+  onRemove: (idx: number) => void;
+  onToggle: (idx: number) => void;
+}) {
+  const inputStyle: React.CSSProperties = {
+    border: "1px solid #e6ddd4",
+    background: "#fff",
+    color: "#111",
+  };
+  const focusHandlers = {
+    onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4"),
+    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      (e.currentTarget.style.boxShadow = "none"),
+  };
+
+  return (
+    <div>
+      {/* Ana satır */}
+      <div className="flex items-center gap-2.5 px-5 py-3">
+        {/* Sıra no */}
+        <span
+          className="text-xs font-semibold w-5 flex-shrink-0 text-center tabular-nums"
+          style={{ color: "#b0a49e" }}
+        >
+          {idx + 1}
+        </span>
+
+        {/* Ürün adı — en geniş */}
+        <input
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm focus:outline-none"
+          style={inputStyle}
+          placeholder="Ürün adı *"
+          value={item.product_name}
+          onChange={(e) => onUpdate(idx, "product_name", e.target.value)}
+          {...focusHandlers}
+        />
+
+        {/* Marka — masaüstünde görünür */}
+        <input
+          className="w-24 px-3 py-2 rounded-lg text-sm focus:outline-none hidden sm:block"
+          style={inputStyle}
+          placeholder="Marka"
+          value={item.brand}
+          onChange={(e) => onUpdate(idx, "brand", e.target.value)}
+          {...focusHandlers}
+        />
+
+        {/* Miktar + Birim — gruplu */}
+        <div className="flex items-center flex-shrink-0" style={{ border: "1px solid #e6ddd4", borderRadius: "0.5rem", overflow: "hidden" }}>
+          <input
+            className="w-16 px-2.5 py-2 text-sm focus:outline-none text-center"
+            style={{ border: "none", background: "#fff", color: "#111" }}
+            placeholder="Adet"
+            type="number"
+            min="0"
+            step="any"
+            value={item.quantity}
+            onChange={(e) => onUpdate(idx, "quantity", e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            onFocus={(e) => (e.currentTarget.parentElement!.style.boxShadow = "0 0 0 3px #e6ddd4")}
+            onBlur={(e) => (e.currentTarget.parentElement!.style.boxShadow = "none")}
+          />
+          <div className="w-px self-stretch" style={{ background: "#e6ddd4" }} />
+          <select
+            className="w-20 px-2 py-2 text-sm focus:outline-none bg-white cursor-pointer"
+            style={{ border: "none", color: "#7a6e67" }}
+            value={item.unit}
+            onChange={(e) => onUpdate(idx, "unit", e.target.value)}
+          >
+            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+
+        {/* Detay toggle */}
+        <button
+          type="button"
+          onClick={() => onToggle(idx)}
+          className="flex items-center gap-1 text-xs px-2.5 py-2 rounded-lg transition-colors flex-shrink-0"
+          style={
+            item.expanded
+              ? { background: "#f5f0eb", color: "#8b3a2a" }
+              : { background: "transparent", color: "#b0a49e" }
+          }
+          title="Detayları göster/gizle"
+        >
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${item.expanded ? "rotate-180" : ""}`} />
+          <span className="hidden sm:inline font-medium">Detay</span>
+        </button>
+
+        {/* Sil */}
+        <button
+          type="button"
+          onClick={() => onRemove(idx)}
+          disabled={total === 1}
+          className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 disabled:opacity-25 disabled:cursor-not-allowed"
+          style={{ color: "#b0a49e" }}
+          onMouseEnter={(e) => { if (total > 1) { e.currentTarget.style.background = "#fdf0ee"; e.currentTarget.style.color = "#8b3a2a"; } }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#b0a49e"; }}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Genişletilmiş detaylar */}
+      {item.expanded && (
+        <div
+          className="px-5 pb-5 pt-4 space-y-4"
+          style={{ background: "#faf4ee", borderTop: "1px solid #f0e9e2" }}
+        >
+          {/* Mobilde marka */}
+          <div className="sm:hidden">
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>Marka</label>
+            <input
+              className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none"
+              style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+              placeholder="Marka"
+              value={item.brand}
+              onChange={(e) => onUpdate(idx, "brand", e.target.value)}
+              {...focusHandlers}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                IMPA Kodu <span style={{ color: "#b0a49e", fontWeight: 400 }}>(opsiyonel)</span>
+              </label>
+              <input
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none"
+                style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+                placeholder="Örn: 550101"
+                value={item.impa_code}
+                maxLength={6}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  onUpdate(idx, "impa_code", val);
+                }}
+                {...focusHandlers}
+              />
+              {item.impa_code && item.impa_code.length < 6 && (
+                <p className="text-xs mt-1" style={{ color: "#b0a49e" }}>
+                  {6 - item.impa_code.length} rakam daha
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                Kısa Not <span style={{ color: "#b0a49e", fontWeight: 400 }}>(opsiyonel)</span>
+              </label>
+              <input
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none"
+                style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+                placeholder="Kısa not..."
+                value={item.description}
+                onChange={(e) => onUpdate(idx, "description", e.target.value)}
+                {...focusHandlers}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+              Detaylı Açıklama <span style={{ color: "#b0a49e", fontWeight: 400 }}>(opsiyonel)</span>
+            </label>
+            <textarea
+              className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none resize-none"
+              style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+              placeholder="Teknik özellikler, boyutlar, standartlar..."
+              rows={3}
+              value={item.detailed_description}
+              onChange={(e) => onUpdate(idx, "detailed_description", e.target.value)}
+              {...focusHandlers}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold mb-2" style={{ color: "#7a6e67" }}>
+              Ürün Fotoğrafı <span style={{ color: "#b0a49e", fontWeight: 400 }}>(opsiyonel)</span>
+            </label>
+            <PhotoUploader
+              value={item.photos}
+              onChange={(photos) => onUpdate(idx, "photos", photos)}
+              maxPhotos={5}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

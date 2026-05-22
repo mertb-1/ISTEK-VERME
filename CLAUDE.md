@@ -184,6 +184,67 @@ Tüm mailler veritabanı tabanlı, admin panelinden düzenlenebilir. Şablonlar 
 - `app/api/orders/route.ts` — Sipariş oluşturma; award maili gönderme
 - `app/admin/mail-templates/MailTemplateEditor.tsx` — 4 sekmeli mail şablon editörü
 
+## UI Tasarım Sistemi
+
+Tüm sayfalar tutarlı warm earth tone palette kullanır. Yeni bileşenler yazarken bu renk sistemine sadık kal.
+
+### Renk Paleti
+
+| Token | Değer | Kullanım |
+|-------|-------|----------|
+| Arka plan | `#faf4ee` | Sayfa arka planı, kart içi alt alanlar |
+| Yüzey | `#fff` | Kartlar, dialoglar |
+| Koyu | `#111` | Başlıklar, önemli metin, butonlar |
+| Rust | `#8b3a2a` | Marka rengi, avatar arka planı |
+| Muted | `#7a6e67` | İkincil metin |
+| Faint | `#b0a49e` | Placeholder, ikonlar, çok soluk metin |
+| Border | `#e6ddd4` | Kart ve tablo kenarlıkları |
+| Border güçlü | `#2px solid #e6ddd4` | Bölüm ayracı (action row vb.) |
+| Yeşil bg | `#edf8f1` | Başarı, awarded, en ucuz karma |
+| Yeşil metin | `#1a7a3a` | Başarı durumu |
+| Amber bg | `#fef5e4` | En ucuz tedarikçi vurgusu |
+| Amber metin | `#a06a00` | En ucuz tedarikçi |
+| Hata bg | `#fdf0ee` | Hata mesajları |
+| Hata metin | `#8b3a2a` / `#c0392b` | Hata, gecikmiş tarih |
+
+### Pill / Chip Bileşeni
+
+Meta bilgi (tarih, sayı, durum) için standart pill stili:
+
+```tsx
+<span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
+  style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+  <IconComponent className="w-3 h-3" />
+  Metin
+</span>
+```
+
+### Avatar / Baş Harf
+
+Tedarikçi/firma avatarı için standart:
+
+```tsx
+<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+  style={{ background: "#f5ede6", color: "#8b3a2a" }}>
+  {initials}
+</div>
+```
+
+### Dialog Focus Ring
+
+Shadcn `Dialog` + `Input`/`Select` içinde `focus:ring-blue-500` yerine `focus:ring-[#d4c5b8]` kullan.
+
+### RfqDetail Karşılaştırma Tablosu Yapısı
+
+`app/(dashboard)/rfq/[id]/RfqDetail.tsx` — tamamlanmış UI polish (commit `4c9990e`):
+
+- **Meta info chips:** `created_at`, `deadline` (gecikmiş ise kırmızı + `AlertTriangle`), kalem sayısı, tedarikçi sayısı — `rounded-full` pill olarak header altında
+- **Tedarikçi kolon header'ı:** Avatar + firma adı + `Seçildi`/`En ucuz`/`delivery_time`/`payment_terms` pill'leri — kompakt, iki satır
+- **Bekleyen tedarikçiler:** Tablo dışında ayrı kart; firma adı + avatar + gönderim tarihi; cevap gelince kaybolur
+- **En Ucuz Karma:** Tablo içi `colSpan` satırdan çıkarıldı; tablo altında bağımsız `#edf8f1` kart olarak — item başına ucuz tedarikçi breakdown'u ile
+- **Action row:** `borderTop: "2px solid #e6ddd4"` + `background: "#faf4ee"` ile güçlü bölüm ayracı
+- **Bekleyen kolon başlığı:** `opacity: 0.4` ile soluk gösterim
+
 ## Kritik Pitfall'lar
 
 - **İç içe form yasak:** `rfq/new/page.tsx` bir `<form>` içinde. Alt bileşenlerde `<form>` açma — `<div>` + `type="button"` kullan.
