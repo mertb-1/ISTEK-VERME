@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import MailTemplateEditor from "./MailTemplateEditor";
+import { Mail } from "lucide-react";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -31,13 +32,28 @@ export default async function MailTemplatesPage() {
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Mail Şablonları</h1>
-          <p className="text-gray-500 mt-1">
-            Sisteminizin gönderdiği maillerin içeriklerini düzenleyin.
-          </p>
+        {/* Page header */}
+        <div className="flex items-center gap-3 mb-8">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "#f0e9e2" }}
+          >
+            <Mail className="w-5 h-5" style={{ color: "#8b3a2a" }} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: "#111", letterSpacing: "-0.02em" }}>
+              Mail Şablonları
+            </h1>
+            <p className="text-sm" style={{ color: "#7a6e67" }}>
+              Sisteminizin gönderdiği maillerin içeriklerini düzenleyin
+            </p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ border: "1px solid #e6ddd4", background: "#fff" }}
+        >
           <MailTemplateEditor initial={templates ?? []} />
         </div>
       </div>

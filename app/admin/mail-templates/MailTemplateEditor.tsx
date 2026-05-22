@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { MAIL_DEFAULTS, type MailTemplateType } from "@/lib/mail-defaults";
 import type { Align } from "@/lib/mail";
 
@@ -25,10 +26,10 @@ type Props = {
 };
 
 const TAB_LABELS: Record<MailTemplateType, string> = {
-  supplier_rfq: "Tedarikçiye Teklif Maili",
-  buyer_notification: "Alıcıya Bildirim Maili",
-  approval: "Kayıt Onay Maili",
-  supplier_order_notification: "Tedarikçiye Sipariş Bildirimi",
+  supplier_rfq: "Tedarikçiye Teklif",
+  buyer_notification: "Alıcıya Bildirim",
+  approval: "Kayıt Onayı",
+  supplier_order_notification: "Sipariş Bildirimi",
 };
 
 const TAB_ORDER: MailTemplateType[] = ["supplier_rfq", "buyer_notification", "approval", "supplier_order_notification"];
@@ -139,6 +140,27 @@ function toAlign(val: string | null | undefined): Align {
   return "left";
 }
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: "1px solid #e6ddd4",
+  borderRadius: "8px",
+  padding: "8px 12px",
+  fontSize: "13px",
+  color: "#111",
+  background: "#fff",
+  outline: "none",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "12px",
+  fontWeight: 500,
+  color: "#7a6e67",
+  marginBottom: "6px",
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+};
+
 function AlignButtons({
   value,
   onChange,
@@ -158,11 +180,12 @@ function AlignButtons({
           key={o.val}
           type="button"
           onClick={() => onChange(o.val)}
-          className={`text-xs px-3 py-1 rounded border transition-colors ${
+          className="text-xs px-3 py-1 rounded transition-colors"
+          style={
             value === o.val
-              ? "bg-blue-900 text-white border-blue-900"
-              : "border-gray-300 text-gray-500 hover:border-blue-900 hover:text-blue-900"
-          }`}
+              ? { background: "#8b3a2a", color: "#fff", border: "1px solid #8b3a2a" }
+              : { border: "1px solid #e6ddd4", color: "#7a6e67", background: "#fff" }
+          }
         >
           {o.label}
         </button>
@@ -187,6 +210,7 @@ export default function MailTemplateEditor({ initial }: Props) {
     return map;
   });
   const [saving, setSaving] = useState(false);
+  const [focused, setFocused] = useState<string | null>(null);
 
   const subjectRef = useRef<HTMLInputElement>(null);
   const greetingRef = useRef<HTMLTextAreaElement>(null);
@@ -194,6 +218,12 @@ export default function MailTemplateEditor({ initial }: Props) {
   const signatureRef = useRef<HTMLTextAreaElement>(null);
 
   const current = templates[activeTab];
+
+  function focusStyle(field: string): React.CSSProperties {
+    return focused === field
+      ? { ...inputStyle, border: "1px solid #8b3a2a", boxShadow: "0 0 0 3px #f0e9e2" }
+      : inputStyle;
+  }
 
   function setField(field: keyof Template, value: string | Align) {
     setTemplates((prev) => ({
@@ -237,7 +267,7 @@ export default function MailTemplateEditor({ initial }: Props) {
         }),
       });
       if (res.ok) {
-        toast.success("Kaydedildi ✓");
+        toast.success("Kaydedildi.");
       } else {
         toast.error("Kaydetme başarısız, tekrar deneyin.");
       }
@@ -278,7 +308,16 @@ export default function MailTemplateEditor({ initial }: Props) {
             key={v}
             type="button"
             onClick={() => insertVar(v, inputRef, field)}
-            className="text-xs px-2.5 py-1 rounded-full border border-blue-900 text-blue-900 hover:bg-blue-900 hover:text-white transition-colors font-mono"
+            className="text-xs px-2.5 py-1 rounded-full font-mono transition-colors"
+            style={{ border: "1px solid #d4c5b8", color: "#8b3a2a", background: "#fdf5f0" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "#8b3a2a";
+              (e.currentTarget as HTMLElement).style.color = "#fff";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "#fdf5f0";
+              (e.currentTarget as HTMLElement).style.color = "#8b3a2a";
+            }}
           >
             {v}
           </button>
@@ -293,126 +332,177 @@ export default function MailTemplateEditor({ initial }: Props) {
   return (
     <div>
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6">
+      <div
+        className="flex gap-0 overflow-x-auto"
+        style={{ borderBottom: "1px solid #e6ddd4" }}
+      >
         {TAB_ORDER.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setActiveTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === t
-                ? "border-blue-900 text-blue-900"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
+            className="px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors"
+            style={{
+              color: activeTab === t ? "#111" : "#7a6e67",
+              borderBottom: activeTab === t ? "2px solid #8b3a2a" : "2px solid transparent",
+              marginBottom: "-1px",
+              background: "transparent",
+            }}
           >
             {TAB_LABELS[t]}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Editör */}
-        <div className="space-y-5">
-          {/* Konu */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mail Konusu</label>
-            <input
-              ref={subjectRef}
-              type="text"
-              value={current.subject}
-              onChange={(e) => setField("subject", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
-            />
-            <VarButtons
-              vars={varDefs.subject}
-              field="subject"
-              inputRef={subjectRef as React.RefObject<HTMLInputElement>}
-            />
+      <div className="p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          {/* Editor */}
+          <div className="space-y-5">
+            {/* Subject */}
+            <div>
+              <label style={labelStyle}>Mail Konusu</label>
+              <input
+                ref={subjectRef}
+                type="text"
+                value={current.subject}
+                onChange={(e) => setField("subject", e.target.value)}
+                onFocus={() => setFocused("subject")}
+                onBlur={() => setFocused(null)}
+                style={focusStyle("subject")}
+              />
+              <VarButtons
+                vars={varDefs.subject}
+                field="subject"
+                inputRef={subjectRef as React.RefObject<HTMLInputElement>}
+              />
+            </div>
+
+            {/* Greeting */}
+            <div>
+              <label style={labelStyle}>Selamlama</label>
+              <textarea
+                ref={greetingRef}
+                rows={2}
+                value={current.greeting}
+                onChange={(e) => setField("greeting", e.target.value)}
+                onFocus={() => setFocused("greeting")}
+                onBlur={() => setFocused(null)}
+                style={{ ...focusStyle("greeting"), resize: "vertical" }}
+              />
+              <AlignButtons
+                value={current.greeting_align}
+                onChange={(a) => setField("greeting_align", a)}
+              />
+            </div>
+
+            {/* Body */}
+            <div>
+              <label style={labelStyle}>Mail İçeriği</label>
+              <textarea
+                ref={bodyRef}
+                rows={8}
+                value={current.body}
+                onChange={(e) => setField("body", e.target.value)}
+                onFocus={() => setFocused("body")}
+                onBlur={() => setFocused(null)}
+                style={{ ...focusStyle("body"), resize: "vertical" }}
+              />
+              <AlignButtons
+                value={current.body_align}
+                onChange={(a) => setField("body_align", a)}
+              />
+              <VarButtons
+                vars={varDefs.body}
+                field="body"
+                inputRef={bodyRef as React.RefObject<HTMLTextAreaElement>}
+              />
+            </div>
+
+            {/* Signature */}
+            <div>
+              <label style={labelStyle}>İmza</label>
+              <textarea
+                ref={signatureRef}
+                rows={4}
+                value={current.signature}
+                onChange={(e) => setField("signature", e.target.value)}
+                onFocus={() => setFocused("signature")}
+                onBlur={() => setFocused(null)}
+                style={{ ...focusStyle("signature"), resize: "vertical" }}
+              />
+              <AlignButtons
+                value={current.signature_align}
+                onChange={(a) => setField("signature_align", a)}
+              />
+              <VarButtons
+                vars={varDefs.signature}
+                field="signature"
+                inputRef={signatureRef as React.RefObject<HTMLTextAreaElement>}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="flex items-center gap-2 text-sm font-semibold disabled:opacity-60 transition-opacity"
+                style={{
+                  background: "#111",
+                  color: "#fff",
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: saving ? "not-allowed" : "pointer",
+                }}
+              >
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+              <button
+                type="button"
+                onClick={resetToDefault}
+                className="text-sm font-medium transition-colors"
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  border: "1px solid #e6ddd4",
+                  background: "#fff",
+                  color: "#7a6e67",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "#faf4ee";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "#fff";
+                }}
+              >
+                Varsayılana Sıfırla
+              </button>
+            </div>
           </div>
 
-          {/* Selamlama */}
+          {/* Preview */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Selamlama</label>
-            <textarea
-              ref={greetingRef}
-              rows={2}
-              value={current.greeting}
-              onChange={(e) => setField("greeting", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 resize-y"
-            />
-            <AlignButtons
-              value={current.greeting_align}
-              onChange={(a) => setField("greeting_align", a)}
-            />
-          </div>
-
-          {/* Gövde */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mail İçeriği</label>
-            <textarea
-              ref={bodyRef}
-              rows={8}
-              value={current.body}
-              onChange={(e) => setField("body", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 resize-y"
-            />
-            <AlignButtons
-              value={current.body_align}
-              onChange={(a) => setField("body_align", a)}
-            />
-            <VarButtons
-              vars={varDefs.body}
-              field="body"
-              inputRef={bodyRef as React.RefObject<HTMLTextAreaElement>}
-            />
-          </div>
-
-          {/* İmza */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">İmza</label>
-            <textarea
-              ref={signatureRef}
-              rows={4}
-              value={current.signature}
-              onChange={(e) => setField("signature", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700 resize-y"
-            />
-            <AlignButtons
-              value={current.signature_align}
-              onChange={(a) => setField("signature_align", a)}
-            />
-            <VarButtons
-              vars={varDefs.signature}
-              field="signature"
-              inputRef={signatureRef as React.RefObject<HTMLTextAreaElement>}
-            />
-          </div>
-
-          {/* Butonlar */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+            <p
+              className="text-xs font-semibold uppercase tracking-widest mb-3"
+              style={{ color: "#7a6e67", letterSpacing: "0.1em" }}
             >
-              {saving ? "Kaydediliyor..." : "Kaydet"}
-            </button>
-            <button
-              type="button"
-              onClick={resetToDefault}
-              className="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+              Canlı Önizleme
+            </p>
+            <div
+              className="rounded-xl overflow-auto"
+              style={{
+                border: "1px solid #e6ddd4",
+                background: "#faf4ee",
+                padding: "16px",
+                maxHeight: "700px",
+              }}
             >
-              Varsayılana Sıfırla
-            </button>
-          </div>
-        </div>
-
-        {/* Önizleme */}
-        <div>
-          <div className="text-sm font-medium text-gray-700 mb-2">Canlı Önizleme</div>
-          <div className="border border-gray-200 rounded-xl bg-gray-50 p-4 overflow-auto max-h-[700px]">
-            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+              <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            </div>
           </div>
         </div>
       </div>
