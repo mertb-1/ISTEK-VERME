@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   // RFQ bu kullanıcıya ait mi? (server client — RLS doğrulur)
   const { data: rfq } = await supabase
     .from("rfqs")
-    .select("id, buyer_id, status, awarded_recipient_id")
+    .select("id, buyer_id, status, awarded_recipient_id, split_awarded")
     .eq("id", rfq_id)
     .eq("buyer_id", user.id)
     .single();
@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
 
   if (rfq.awarded_recipient_id) {
     return NextResponse.json({ error: "Bu teklif talebinde zaten bir sipariş var." }, { status: 409 });
+  }
+
+  if (rfq.split_awarded) {
+    return NextResponse.json({ error: "Bu teklif talebi karma sipariş ile kapatılmış." }, { status: 409 });
   }
 
   // rfq_recipient bu rfq'ya ait mi ve henüz award edilmedi mi?

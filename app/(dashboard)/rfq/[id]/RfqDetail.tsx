@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, Mail, AlertTriangle, Trophy, Package, ExternalLink } from "lucide-react";
+import { CheckCircle, Clock, Mail, AlertTriangle, Trophy, Package, ExternalLink, Layers } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -35,12 +35,14 @@ function formatPrice(n: number | null | undefined) {
   return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
 }
 
+type SplitOrder = { rfq_recipient_id: string; order_id: string };
+
 export default function RfqDetail({
   rfq,
   items,
   recipients,
 }: {
-  rfq: { id: string; title: string; status: string; deadline: string; notes: string; created_at: string; awarded_recipient_id: string | null };
+  rfq: { id: string; title: string; status: string; deadline: string; notes: string; created_at: string; awarded_recipient_id: string | null; split_awarded: boolean };
   items: RfqItem[];
   recipients: Recipient[];
 }) {
@@ -51,6 +53,17 @@ export default function RfqDetail({
   const [awardedOrderId, setAwardedOrderId] = useState<string | null>(
     recipients.find((r) => r.order_id)?.order_id ?? null
   );
+
+  // Split-award state
+  const initialSplitOrders: SplitOrder[] = rfq.split_awarded
+    ? recipients.filter((r) => r.order_id).map((r) => ({ rfq_recipient_id: r.id, order_id: r.order_id! }))
+    : [];
+  const [splitAwardedOrders, setSplitAwardedOrders] = useState<SplitOrder[]>(initialSplitOrders);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [splitAwarding, setSplitAwarding] = useState(false);
+  const [splitAwardError, setSplitAwardError] = useState("");
+  const [splitNote, setSplitNote] = useState("");
+  const [splitDelivery, setSplitDelivery] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogRecipient, setDialogRecipient] = useState<Recipient | null>(null);
@@ -84,9 +97,69 @@ export default function RfqDetail({
       })
     : null;
 
+  // Build cheapest-mix awards array (one entry per item)
+  const cheapestMixAwards: Array<{ rfq_item_id: string; rfq_recipient_id: string }> = [];
+  for (const item of items) {
+    let cheapestR: Recipient | null = null;
+    let cheapestPrice = Infinity;
+    for (const r of respondedRecipients) {
+      const qi = getPriceForItem(r, item.id);
+      if (qi && qi.unit_price > 0 && qi.unit_price < cheapestPrice) {
+        cheapestPrice = qi.unit_price;
+        cheapestR = r;
+      }
+    }
+    if (cheapestR) {
+      cheapestMixAwards.push({ rfq_item_id: item.id, rfq_recipient_id: cheapestR.id });
+    }
+  }
+  const cheapestMixValid = cheapestMixAwards.length === items.length && items.length > 0;
+
+  // Group awards by supplier for dialog preview
+  const splitAwardsGrouped: Record<string, { supplier: Supplier; itemNames: string[] }> = {};
+  for (const award of cheapestMixAwards) {
+    if (!splitAwardsGrouped[award.rfq_recipient_id]) {
+      const r = respondedRecipients.find((x) => x.id === award.rfq_recipient_id);
+      if (r) splitAwardsGrouped[award.rfq_recipient_id] = { supplier: getSupplier(r), itemNames: [] };
+    }
+    const itemName = items.find((i) => i.id === award.rfq_item_id)?.product_name ?? award.rfq_item_id;
+    if (splitAwardsGrouped[award.rfq_recipient_id]) {
+      splitAwardsGrouped[award.rfq_recipient_id].itemNames.push(itemName);
+    }
+  }
+
   const isOpen = rfq.status === "open";
+  const rfqClosed = !!awardedRecipientId || splitAwardedOrders.length > 0;
   const deadline = rfq.deadline ? new Date(rfq.deadline) : null;
   const isOverdue = deadline && deadline < new Date() && isOpen;
+
+  async function handleConfirmSplitAward() {
+    setSplitAwarding(true);
+    setSplitAwardError("");
+    try {
+      const res = await fetch("/api/orders/split-award", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rfq_id: rfq.id,
+          awards: cheapestMixAwards,
+          buyer_note: splitNote || undefined,
+          expected_delivery: splitDelivery || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSplitAwardError(data.error ?? "Sipariş oluşturulamadı.");
+        return;
+      }
+      setSplitAwardedOrders(data.orders as SplitOrder[]);
+      setSplitDialogOpen(false);
+    } catch {
+      setSplitAwardError("Bağlantı hatası. Lütfen tekrar deneyin.");
+    } finally {
+      setSplitAwarding(false);
+    }
+  }
 
   function openAwardDialog(r: Recipient) {
     setDialogRecipient(r);
@@ -228,6 +301,43 @@ export default function RfqDetail({
           </div>
         );
       })()}
+
+      {/* Split-award success banner */}
+      {splitAwardedOrders.length > 0 && (
+        <div
+          className="flex items-start justify-between gap-4 px-5 py-4 rounded-xl mb-5"
+          style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}
+        >
+          <div className="flex items-start gap-3">
+            <Layers className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#1a7a3a" }} />
+            <div>
+              <div className="text-sm font-semibold" style={{ color: "#1a7a3a" }}>
+                Parçalı sipariş oluşturuldu — {splitAwardedOrders.length} tedarikçi
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: "#1a7a3a", opacity: 0.75 }}>
+                Teklif talebi kapatıldı. Her tedarikçi için ayrı sipariş oluşturuldu.
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 flex-shrink-0">
+            {splitAwardedOrders.map(({ rfq_recipient_id, order_id }) => {
+              const r = recipients.find((x) => x.id === rfq_recipient_id);
+              const s = r ? getSupplier(r) : null;
+              return (
+                <Link
+                  key={order_id}
+                  href={`/orders/${order_id}`}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors"
+                  style={{ background: "#1a7a3a", color: "#fff" }}
+                >
+                  {s?.company_name ?? "Sipariş"}
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pending suppliers */}
       {pendingRecipients.length > 0 && (
@@ -584,6 +694,29 @@ export default function RfqDetail({
                         );
                       })}
                     </div>
+                    {/* Split-award action button */}
+                    {isOpen && !rfqClosed && cheapestMixValid && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSplitNote("");
+                          setSplitDelivery("");
+                          setSplitAwardError("");
+                          setSplitDialogOpen(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all mt-1"
+                        style={{ background: "#1a7a3a", color: "#fff" }}
+                      >
+                        <Layers className="w-4 h-4" />
+                        En Ucuz Karma ile Sipariş Oluştur
+                      </button>
+                    )}
+                    {splitAwardedOrders.length === 0 && (rfq.split_awarded || rfqClosed) && (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: "#d4f0de", color: "#1a7a3a" }}>
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Parçalı Sipariş Oluşturuldu
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -593,14 +726,14 @@ export default function RfqDetail({
           {/* Award action row */}
           <div className="px-5 py-5" style={{ borderTop: "2px solid #e6ddd4", background: "#faf4ee" }}>
             <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#7a6e67" }}>
-              {awardedRecipientId ? "Sipariş Verildi" : "Tedarikçi Seç"}
+              {rfqClosed ? "Sipariş Verildi" : "Tedarikçi Seç"}
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
               {respondedRecipients.map((r) => {
                 const s = getSupplier(r);
                 const isOverallCheapest = cheapestSupplierRecipient?.id === r.id && respondedRecipients.length > 1;
                 const isAwarded = awardedRecipientId === r.id;
-                const isDisabled = !!awardedRecipientId;
+                const isDisabled = rfqClosed;
 
                 if (isAwarded) {
                   return (
@@ -645,6 +778,100 @@ export default function RfqDetail({
           </div>
         </div>
       )}
+
+      {/* Split-award confirmation dialog */}
+      <Dialog open={splitDialogOpen} onOpenChange={(open) => { if (!splitAwarding) setSplitDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>En Ucuz Karma ile Sipariş Oluştur</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm" style={{ color: "#7a6e67" }}>
+              Her ürün için en uygun tedarikçiye ayrı sipariş oluşturulacak. Aynı anda birden fazla tedarikçiyle çalışılır.
+            </p>
+            {/* Supplier grouping preview */}
+            <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #e6ddd4" }}>
+              <div className="px-4 py-2.5" style={{ background: "#faf4ee", borderBottom: "1px solid #e6ddd4" }}>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#7a6e67" }}>
+                  Sipariş Dağılımı
+                </span>
+              </div>
+              {Object.entries(splitAwardsGrouped).map(([recipientId, group]) => (
+                <div key={recipientId} className="px-4 py-3" style={{ borderBottom: "1px solid #f0e8e0" }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
+                      {getInitials(group.supplier?.company_name ?? "?")}
+                    </div>
+                    <span className="text-sm font-semibold" style={{ color: "#111" }}>{group.supplier?.company_name}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 pl-8">
+                    {group.itemNames.map((name, i) => (
+                      <span key={i} className="inline-flex text-xs px-1.5 py-0.5 rounded" style={{ background: "#f5f0eb", color: "#7a6e67" }}>
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className="px-4 py-2.5 flex justify-between items-center" style={{ background: "#faf4ee" }}>
+                <span className="text-xs font-semibold" style={{ color: "#7a6e67" }}>Toplam</span>
+                <span className="text-base font-bold tabular-nums" style={{ color: "#1a7a3a" }}>{formatPrice(cheapestMixTotal)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium" style={{ color: "#111" }}>
+                Beklenen Teslimat Tarihi <span style={{ color: "#b0a49e" }}>(opsiyonel)</span>
+              </label>
+              <input
+                type="date"
+                value={splitDelivery}
+                onChange={(e) => setSplitDelivery(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8]"
+                style={{ borderColor: "#e6ddd4" }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium" style={{ color: "#111" }}>
+                Sipariş Notu <span style={{ color: "#b0a49e" }}>(opsiyonel, tüm tedarikçilere iletilir)</span>
+              </label>
+              <textarea
+                value={splitNote}
+                onChange={(e) => setSplitNote(e.target.value)}
+                placeholder="Tedarikçilere iletilecek sipariş notu..."
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8] resize-none"
+                style={{ borderColor: "#e6ddd4" }}
+              />
+            </div>
+
+            {splitAwardError && (
+              <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "#fdf0ee", color: "#8b3a2a" }}>
+                {splitAwardError}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSplitDialogOpen(false)}
+              disabled={splitAwarding}
+            >
+              İptal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmSplitAward}
+              disabled={splitAwarding}
+              style={{ background: "#1a7a3a", color: "#fff" }}
+            >
+              {splitAwarding ? "Oluşturuluyor..." : "Siparişleri Oluştur →"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Award confirmation dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!awarding) setDialogOpen(open); }}>
