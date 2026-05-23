@@ -134,6 +134,10 @@ export default function RfqDetail({
   const isOverdue = deadline && deadline < new Date() && isOpen;
 
   async function handleConfirmSplitAward() {
+    if (!cheapestMixValid) {
+      setSplitAwardError("Bazı ürünler için fiyat bulunamadı. Tüm ürünlerin fiyatlandırılmış olması gerekiyor.");
+      return;
+    }
     setSplitAwarding(true);
     setSplitAwardError("");
     try {
@@ -694,23 +698,6 @@ export default function RfqDetail({
                         );
                       })}
                     </div>
-                    {/* Split-award action button */}
-                    {isOpen && !rfqClosed && cheapestMixValid && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSplitNote("");
-                          setSplitDelivery("");
-                          setSplitAwardError("");
-                          setSplitDialogOpen(true);
-                        }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all mt-1"
-                        style={{ background: "#1a7a3a", color: "#fff" }}
-                      >
-                        <Layers className="w-4 h-4" />
-                        En Ucuz Karma ile Sipariş Oluştur
-                      </button>
-                    )}
                     {splitAwardedOrders.length === 0 && (rfq.split_awarded || rfqClosed) && (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: "#d4f0de", color: "#1a7a3a" }}>
                         <CheckCircle className="w-3.5 h-3.5" />
@@ -719,6 +706,25 @@ export default function RfqDetail({
                     )}
                   </div>
                 </div>
+                {/* Split-award action button — full width row below the summary */}
+                {isOpen && !rfqClosed && (
+                  <div className="mt-4 pt-4" style={{ borderTop: "1px solid #b8e6c8" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSplitNote("");
+                        setSplitDelivery("");
+                        setSplitAwardError("");
+                        setSplitDialogOpen(true);
+                      }}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                      style={{ background: "#1a7a3a", color: "#fff" }}
+                    >
+                      <Layers className="w-4 h-4" />
+                      En Ucuz Karma ile Sipariş Oluştur
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
