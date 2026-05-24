@@ -150,14 +150,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Every RFQ item must appear in awards exactly once (coverage check)
-  if (typedAwards.length !== rfqItems.length) {
-    return NextResponse.json(
-      { error: "Tüm ürünler bir tedarikçiye atanmalı." },
-      { status: 400 }
-    );
-  }
-
   // --- Fetch responded recipients for this RFQ ---
   const { data: recipientsRaw } = await admin
     .from("rfq_recipients")

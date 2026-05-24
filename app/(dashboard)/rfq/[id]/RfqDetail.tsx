@@ -852,16 +852,15 @@ export default function RfqDetail({
             </div>
 
             {uncoveredItems.length > 0 && (
-              <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "#fdf0ee", color: "#8b3a2a" }}>
-                <div className="font-semibold mb-1">Aşağıdaki ürünler için fiyat bulunamadı:</div>
+              <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "#fef5e4", border: "1px solid #f0d890" }}>
+                <div className="font-semibold mb-1" style={{ color: "#a06a00" }}>
+                  Aşağıdaki ürünler için fiyat bulunamadı, bu siparişe dahil edilmeyecek:
+                </div>
                 <ul className="list-disc list-inside space-y-0.5">
                   {uncoveredItems.map((item) => (
-                    <li key={item.id} className="text-xs">{item.product_name}</li>
+                    <li key={item.id} className="text-xs" style={{ color: "#a06a00" }}>{item.product_name}</li>
                   ))}
                 </ul>
-                <div className="mt-1.5 text-xs" style={{ color: "#a04a3a" }}>
-                  Tüm ürünlerin en az bir tedarikçiden geçerli fiyatı olmalı.
-                </div>
               </div>
             )}
             {splitAwardError && (
@@ -882,8 +881,8 @@ export default function RfqDetail({
             <Button
               type="button"
               onClick={handleConfirmSplitAward}
-              disabled={splitAwarding || uncoveredItems.length > 0}
-              style={{ background: "#1a7a3a", color: "#fff", opacity: uncoveredItems.length > 0 ? 0.4 : 1 }}
+              disabled={splitAwarding || cheapestMixAwards.length === 0}
+              style={{ background: "#1a7a3a", color: "#fff" }}
             >
               {splitAwarding ? "Oluşturuluyor..." : "Siparişleri Oluştur →"}
             </Button>
