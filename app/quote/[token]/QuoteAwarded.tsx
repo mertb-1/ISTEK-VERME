@@ -48,48 +48,45 @@ export default function QuoteAwarded({
       })
     : null;
 
-  const hasDetails = confirmedAmount != null || deliveryText || buyerNote;
   const hasItems = orderItems.length > 0;
+  const hasExtraDetails = deliveryText || buyerNote;
 
   return (
     <div className="min-h-screen" style={{ background: "#faf4ee" }}>
-      {/* Buyer identity bar */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e6ddd4" }}>
-        <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col items-center gap-1">
-          {buyerLogoUrl ? (
-            <img src={buyerLogoUrl} alt={buyerCompany} className="h-10 object-contain" />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
-              style={{ background: "#8b3a2a" }}
-            >
-              {buyerCompany.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
-            </div>
-          )}
-          <p className="text-xs" style={{ color: "#7a6e67" }}>
-            <strong style={{ color: "#111" }}>{buyerCompany}</strong> · {APP_NAME}
-          </p>
-        </div>
-      </div>
-
-      {/* RFQ info header */}
+      {/* Combined black header with buyer identity */}
       <div style={{ background: "#111" }}>
         <div className="max-w-3xl mx-auto px-4 py-5">
-          <p className="text-xs tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em" }}>
-            {APP_NAME} · TEKLİF TALEBİ
+          {/* Buyer identity row */}
+          <div className="flex items-center gap-3 mb-4">
+            {buyerLogoUrl ? (
+              <img src={buyerLogoUrl} alt={buyerCompany} className="h-8 object-contain" style={{ filter: "brightness(0) invert(1)" }} />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
+              >
+                {buyerCompany.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+              </div>
+            )}
+            <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+              {buyerCompany}
+            </span>
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{APP_NAME}</span>
+          </div>
+
+          {/* RFQ title */}
+          <p className="text-xs tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.12em" }}>
+            TEKLİF TALEBİ
           </p>
           <h1 className="text-xl font-semibold text-white leading-snug">{rfqTitle}</h1>
-          <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-            Alıcı: <span style={{ color: "rgba(255,255,255,0.85)" }}>{buyerCompany}</span>
-          </p>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        {/* Success banner + order summary */}
+        {/* Success banner */}
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
-          {/* Success banner */}
-          <div className="px-6 py-8 text-center" style={{ borderBottom: hasDetails ? "1px solid #e6ddd4" : undefined }}>
+          <div className="px-6 py-8 text-center">
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: "#edf8f1" }}
@@ -108,20 +105,9 @@ export default function QuoteAwarded({
             </p>
           </div>
 
-          {/* Order summary fields */}
-          {hasDetails && (
-            <div className="px-6 py-5 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b0a49e" }}>
-                Sipariş Özeti
-              </p>
-              {confirmedAmount != null && (
-                <div className="flex justify-between items-center py-2" style={{ borderBottom: "1px solid #f0e8e0" }}>
-                  <span className="text-sm" style={{ color: "#7a6e67" }}>Onaylanan Tutar</span>
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: "#111" }}>
-                    {formatPrice(confirmedAmount)}
-                  </span>
-                </div>
-              )}
+          {/* Delivery date + buyer note — only if present, never the amount (shown in table) */}
+          {hasExtraDetails && (
+            <div className="px-6 pb-5 space-y-3" style={{ borderTop: "1px solid #e6ddd4", paddingTop: "1.25rem" }}>
               {deliveryText && (
                 <div
                   className="flex justify-between items-center py-2"
