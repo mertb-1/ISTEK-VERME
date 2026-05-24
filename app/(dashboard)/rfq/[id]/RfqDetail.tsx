@@ -113,8 +113,6 @@ export default function RfqDetail({
       cheapestMixAwards.push({ rfq_item_id: item.id, rfq_recipient_id: cheapestR.id });
     }
   }
-  const cheapestMixValid = cheapestMixAwards.length === items.length && items.length > 0;
-
   // Group awards by supplier for dialog preview
   const splitAwardsGrouped: Record<string, { supplier: Supplier; itemNames: string[] }> = {};
   for (const award of cheapestMixAwards) {
@@ -134,10 +132,6 @@ export default function RfqDetail({
   const isOverdue = deadline && deadline < new Date() && isOpen;
 
   async function handleConfirmSplitAward() {
-    if (!cheapestMixValid) {
-      setSplitAwardError("Bazı ürünler için fiyat bulunamadı. Tüm ürünlerin fiyatlandırılmış olması gerekiyor.");
-      return;
-    }
     setSplitAwarding(true);
     setSplitAwardError("");
     try {
@@ -787,11 +781,11 @@ export default function RfqDetail({
 
       {/* Split-award confirmation dialog */}
       <Dialog open={splitDialogOpen} onOpenChange={(open) => { if (!splitAwarding) setSplitDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[520px] flex flex-col max-h-[85vh] p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0" style={{ borderBottom: "1px solid #e6ddd4" }}>
             <DialogTitle>En Ucuz Karma ile Sipariş Oluştur</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <p className="text-sm" style={{ color: "#7a6e67" }}>
               Her ürün için en uygun tedarikçiye ayrı sipariş oluşturulacak. Aynı anda birden fazla tedarikçiyle çalışılır.
             </p>
@@ -858,7 +852,7 @@ export default function RfqDetail({
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 flex-shrink-0" style={{ borderTop: "1px solid #e6ddd4" }}>
             <Button
               type="button"
               variant="outline"
