@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
 import QuoteForm from "./QuoteForm";
-import QuoteAwarded from "./QuoteAwarded";
+import QuoteAwarded, { type AwardedOrderItem } from "./QuoteAwarded";
 
 export default async function QuotePage({ params }: { params: { token: string } }) {
   noStore();
@@ -40,18 +40,39 @@ export default async function QuotePage({ params }: { params: { token: string } 
     let confirmedAmount: number | null = null;
     let expectedDelivery: string | null = null;
     let buyerNote: string | null = null;
+    let orderItems: AwardedOrderItem[] = [];
 
     if (recipient.order_id) {
-      const { data: order } = await supabase
-        .from("orders")
-        .select("confirmed_amount, expected_delivery, buyer_note")
-        .eq("id", recipient.order_id)
-        .single();
+      const [{ data: order }, { data: rawItems }] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("confirmed_amount, expected_delivery, buyer_note")
+          .eq("id", recipient.order_id)
+          .single(),
+        supabase
+          .from("order_items")
+          .select("id, confirmed_unit_price, confirmed_quantity, confirmed_brand, rfq_items(product_name, unit)")
+          .eq("order_id", recipient.order_id),
+      ]);
+
       if (order) {
         confirmedAmount = order.confirmed_amount ?? null;
         expectedDelivery = order.expected_delivery ?? null;
         buyerNote = order.buyer_note ?? null;
       }
+
+      orderItems = (rawItems ?? []).map((item) => {
+        const rfqItemRaw = item.rfq_items;
+        const rfqItem = (Array.isArray(rfqItemRaw) ? rfqItemRaw[0] : rfqItemRaw) as { product_name: string; unit: string } | null;
+        return {
+          id: item.id,
+          productName: rfqItem?.product_name ?? "",
+          unit: rfqItem?.unit ?? "",
+          confirmedBrand: item.confirmed_brand ?? null,
+          confirmedQuantity: item.confirmed_quantity ?? null,
+          confirmedUnitPrice: item.confirmed_unit_price ?? null,
+        };
+      });
     }
 
     return (
@@ -63,6 +84,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
         expectedDelivery={expectedDelivery}
         buyerNote={buyerNote}
         supplierName={supplier?.contact_name ?? supplier?.company_name}
+        orderItems={orderItems}
       />
     );
   }

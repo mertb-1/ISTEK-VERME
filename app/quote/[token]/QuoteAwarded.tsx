@@ -1,5 +1,14 @@
-import { CheckCircle } from "lucide-react";
-import { APP_NAME } from "@/lib/config";
+import { CheckCircle, Package } from "lucide-react";
+import { APP_NAME, DEFAULT_CURRENCY } from "@/lib/config";
+
+export type AwardedOrderItem = {
+  id: string;
+  productName: string;
+  unit: string;
+  confirmedBrand: string | null;
+  confirmedQuantity: number | null;
+  confirmedUnitPrice: number | null;
+};
 
 type Props = {
   buyerCompany: string;
@@ -9,7 +18,17 @@ type Props = {
   expectedDelivery?: string | null;
   buyerNote?: string | null;
   supplierName?: string;
+  orderItems?: AwardedOrderItem[];
 };
+
+function formatPrice(n: number | null | undefined) {
+  if (n == null) return "—";
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: DEFAULT_CURRENCY,
+    minimumFractionDigits: 2,
+  }).format(n);
+}
 
 export default function QuoteAwarded({
   buyerCompany,
@@ -19,6 +38,7 @@ export default function QuoteAwarded({
   expectedDelivery,
   buyerNote,
   supplierName,
+  orderItems = [],
 }: Props) {
   const deliveryText = expectedDelivery
     ? new Date(expectedDelivery).toLocaleDateString("tr-TR", {
@@ -28,13 +48,8 @@ export default function QuoteAwarded({
       })
     : null;
 
-  const amountText =
-    confirmedAmount != null
-      ? Number(confirmedAmount).toLocaleString("tr-TR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      : null;
+  const hasDetails = confirmedAmount != null || deliveryText || buyerNote;
+  const hasItems = orderItems.length > 0;
 
   return (
     <div className="min-h-screen" style={{ background: "#faf4ee" }}>
@@ -42,11 +57,7 @@ export default function QuoteAwarded({
       <div style={{ background: "#fff", borderBottom: "1px solid #e6ddd4" }}>
         <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col items-center gap-1">
           {buyerLogoUrl ? (
-            <img
-              src={buyerLogoUrl}
-              alt={buyerCompany}
-              className="h-10 object-contain"
-            />
+            <img src={buyerLogoUrl} alt={buyerCompany} className="h-10 object-contain" />
           ) : (
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
@@ -74,10 +85,11 @@ export default function QuoteAwarded({
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        {/* Success banner + order summary */}
         <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
           {/* Success banner */}
-          <div className="px-6 py-8 text-center" style={{ borderBottom: (amountText || deliveryText || buyerNote) ? "1px solid #e6ddd4" : undefined }}>
+          <div className="px-6 py-8 text-center" style={{ borderBottom: hasDetails ? "1px solid #e6ddd4" : undefined }}>
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: "#edf8f1" }}
@@ -96,20 +108,25 @@ export default function QuoteAwarded({
             </p>
           </div>
 
-          {/* Order details */}
-          {(amountText || deliveryText || buyerNote) && (
+          {/* Order summary fields */}
+          {hasDetails && (
             <div className="px-6 py-5 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#b0a49e" }}>
-                Sipariş Detayları
+                Sipariş Özeti
               </p>
-              {amountText && (
+              {confirmedAmount != null && (
                 <div className="flex justify-between items-center py-2" style={{ borderBottom: "1px solid #f0e8e0" }}>
                   <span className="text-sm" style={{ color: "#7a6e67" }}>Onaylanan Tutar</span>
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: "#111" }}>{amountText}</span>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: "#111" }}>
+                    {formatPrice(confirmedAmount)}
+                  </span>
                 </div>
               )}
               {deliveryText && (
-                <div className="flex justify-between items-center py-2" style={{ borderBottom: buyerNote ? "1px solid #f0e8e0" : undefined }}>
+                <div
+                  className="flex justify-between items-center py-2"
+                  style={{ borderBottom: buyerNote ? "1px solid #f0e8e0" : undefined }}
+                >
                   <span className="text-sm" style={{ color: "#7a6e67" }}>Teslim Tarihi</span>
                   <span className="text-sm font-semibold tabular-nums" style={{ color: "#111" }}>{deliveryText}</span>
                 </div>
@@ -134,6 +151,81 @@ export default function QuoteAwarded({
             </p>
           </div>
         </div>
+
+        {/* Order items table */}
+        {hasItems && (
+          <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
+            <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+              <Package className="w-4 h-4" style={{ color: "#7a6e67" }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#7a6e67" }}>
+                Sipariş Kalemleri
+              </span>
+              <span
+                className="ml-1 text-xs font-mono px-1.5 py-0.5 rounded-sm"
+                style={{ background: "#e6ddd4", color: "#7a6e67" }}
+              >
+                {orderItems.length}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
+                    <th className="text-left px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>ÜRÜN</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>MİKTAR</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>BİRİM FİYAT</th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>TOPLAM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderItems.map((item, idx) => {
+                    const qty = item.confirmedQuantity;
+                    const price = item.confirmedUnitPrice;
+                    const total = qty != null && price != null ? qty * price : null;
+                    const isEven = idx % 2 === 0;
+
+                    return (
+                      <tr key={item.id} style={{ borderBottom: "1px solid #f0e8e0", background: isEven ? "#fff" : "#fdfaf7" }}>
+                        <td className="px-5 py-4">
+                          <div className="font-medium" style={{ color: "#111" }}>{item.productName || "—"}</div>
+                          {item.confirmedBrand && (
+                            <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>{item.confirmedBrand}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-right tabular-nums" style={{ color: "#7a6e67" }}>
+                          {qty != null ? `${qty} ${item.unit}`.trim() : "—"}
+                        </td>
+                        <td className="px-4 py-4 text-right tabular-nums" style={{ color: "#7a6e67" }}>
+                          {formatPrice(price)}
+                        </td>
+                        <td className="px-5 py-4 text-right tabular-nums font-semibold" style={{ color: "#111" }}>
+                          {formatPrice(total)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              <div
+                className="flex items-center justify-between px-5 py-3"
+                style={{ borderTop: "1px solid #e6ddd4", background: "#faf4ee" }}
+              >
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#7a6e67" }}>
+                  Genel Toplam
+                </span>
+                <span className="text-sm font-bold tabular-nums" style={{ color: "#111" }}>
+                  {formatPrice(confirmedAmount ?? orderItems.reduce((s, i) => {
+                    const q = i.confirmedQuantity ?? 0;
+                    const p = i.confirmedUnitPrice ?? 0;
+                    return s + q * p;
+                  }, 0))}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
