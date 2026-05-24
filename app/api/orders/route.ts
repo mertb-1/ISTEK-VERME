@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMailTemplate, replaceVars, buildMailHtml, sendSimpleMail, esc } from "@/lib/mail";
 import { MAIL_DEFAULTS } from "@/lib/mail-defaults";
 import { APP_NAME } from "@/lib/config";
+import { type Currency, SUPPORTED_CURRENCIES } from "@/lib/currency";
 
 function isUuid(val: unknown): val is string {
   return (
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   // RFQ bu kullanıcıya ait mi? (server client — RLS doğrulur)
   const { data: rfq } = await supabase
     .from("rfqs")
-    .select("id, buyer_id, status, awarded_recipient_id, split_awarded")
+    .select("id, buyer_id, status, awarded_recipient_id, split_awarded, currency")
     .eq("id", rfq_id)
     .eq("buyer_id", user.id)
     .single();
@@ -74,6 +75,10 @@ export async function POST(req: NextRequest) {
 
   if (!quote) return NextResponse.json({ error: "Teklif bulunamadı." }, { status: 404 });
 
+  const orderCurrency: Currency = SUPPORTED_CURRENCIES.includes(rfq.currency as Currency)
+    ? (rfq.currency as Currency)
+    : "USD";
+
   // orders INSERT (server client — RLS buyer_id kontrolü yapar)
   const { data: order, error: orderErr } = await supabase
     .from("orders")
@@ -88,6 +93,7 @@ export async function POST(req: NextRequest) {
       confirmation_note: typeof confirmation_note === "string" ? confirmation_note.slice(0, 2000) : null,
       confirmed_amount: quote.total_amount ?? null,
       expected_delivery: typeof expected_delivery === "string" && expected_delivery ? expected_delivery : null,
+      currency: orderCurrency,
     })
     .select("id")
     .single();

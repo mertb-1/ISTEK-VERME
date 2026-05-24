@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getMailTemplate, replaceVars, buildMailHtml, sendSimpleMail, esc } from "@/lib/mail";
 import { MAIL_DEFAULTS } from "@/lib/mail-defaults";
 import { APP_NAME } from "@/lib/config";
+import { type Currency, SUPPORTED_CURRENCIES } from "@/lib/currency";
 
 function isUuid(val: unknown): val is string {
   return (
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
   // --- RFQ ownership and status ---
   const { data: rfq } = await supabase
     .from("rfqs")
-    .select("id, buyer_id, status, awarded_recipient_id, split_awarded")
+    .select("id, buyer_id, status, awarded_recipient_id, split_awarded, currency")
     .eq("id", rfq_id)
     .eq("buyer_id", user.id)
     .single();
@@ -244,6 +245,10 @@ export async function POST(req: NextRequest) {
   const expectedDelivery =
     typeof expected_delivery === "string" && expected_delivery ? expected_delivery : null;
 
+  const orderCurrency: Currency = SUPPORTED_CURRENCIES.includes(rfq.currency as Currency)
+    ? (rfq.currency as Currency)
+    : "USD";
+
   const createdOrderIds: string[] = [];
   const createdOrders: Array<{ rfq_recipient_id: string; order_id: string }> = [];
 
@@ -273,6 +278,7 @@ export async function POST(req: NextRequest) {
         confirmed_amount: confirmedAmount,
         buyer_note: buyerNote,
         expected_delivery: expectedDelivery,
+        currency: orderCurrency,
       })
       .select("id")
       .single();

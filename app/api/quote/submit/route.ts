@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMailTemplate, replaceVars, buildMailHtml, sendSimpleMail } from "@/lib/mail";
 import { APP_NAME } from "@/lib/config";
+import { type Currency, SUPPORTED_CURRENCIES } from "@/lib/currency";
 
 // Sadece izin verilen alanlar quote_items'a yazılır — injection önlemi
 const ALLOWED_ITEM_KEYS = ["rfq_item_id", "unit_price", "total_price", "offered_brand", "in_stock"] as const;
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   // Token + recipient_id birlikte doğrula (ikisi eşleşmeli)
   const { data: recipient } = await supabase
     .from("rfq_recipients")
-    .select("id, magic_token, status, rfqs!rfq_recipients_rfq_id_fkey(deadline)")
+    .select("id, magic_token, status, rfqs!rfq_recipients_rfq_id_fkey(deadline, currency)")
     .eq("magic_token", token)
     .eq("id", recipient_id)
     .single();
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Deadline + 7 gün süre kontrolü
-  const rfq = (Array.isArray(recipient.rfqs) ? recipient.rfqs[0] : recipient.rfqs) as { deadline?: string };
+  const rfq = (Array.isArray(recipient.rfqs) ? recipient.rfqs[0] : recipient.rfqs) as { deadline?: string; currency?: string };
   if (rfq?.deadline) {
     const expiry = new Date(new Date(rfq.deadline).getTime() + 7 * 24 * 60 * 60 * 1000);
     if (new Date() > expiry) {
@@ -69,6 +70,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz tutar." }, { status: 400 });
   }
 
+  // RFQ'dan currency'yi güvenli şekilde al (tedarikçiden asla alınmaz)
+  const rfqCurrency: Currency = SUPPORTED_CURRENCIES.includes(rfq?.currency as Currency)
+    ? (rfq!.currency as Currency)
+    : "USD";
+
   // Quote oluştur
   const { data: quote, error: quoteErr } = await supabase
     .from("quotes")
@@ -78,6 +84,7 @@ export async function POST(req: NextRequest) {
       payment_terms: typeof payment_terms === "string" ? payment_terms.slice(0, 500) : null,
       supplier_notes: typeof supplier_notes === "string" ? supplier_notes.slice(0, 2000) : null,
       total_amount: parsedTotal,
+      currency: rfqCurrency,
     })
     .select("id")
     .single();
