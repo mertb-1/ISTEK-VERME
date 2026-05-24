@@ -119,15 +119,22 @@ export default function RfqDetail({
   const uncoveredItems = items.filter((item) => !coveredItemIds.has(item.id));
 
   // Group awards by supplier for dialog preview — derived from same cheapestMixAwards
-  const splitAwardsGrouped: Record<string, { supplier: Supplier; itemNames: string[] }> = {};
+  const splitAwardsGrouped: Record<string, { supplier: Supplier; itemNames: string[]; subtotal: number }> = {};
   for (const award of cheapestMixAwards) {
     if (!splitAwardsGrouped[award.rfq_recipient_id]) {
       const r = respondedRecipients.find((x) => x.id === award.rfq_recipient_id);
-      if (r) splitAwardsGrouped[award.rfq_recipient_id] = { supplier: getSupplier(r), itemNames: [] };
+      if (r) splitAwardsGrouped[award.rfq_recipient_id] = { supplier: getSupplier(r), itemNames: [], subtotal: 0 };
     }
-    const itemName = items.find((i) => i.id === award.rfq_item_id)?.product_name ?? award.rfq_item_id;
-    if (splitAwardsGrouped[award.rfq_recipient_id]) {
-      splitAwardsGrouped[award.rfq_recipient_id].itemNames.push(itemName);
+    const rfqItem = items.find((i) => i.id === award.rfq_item_id);
+    const itemName = rfqItem?.product_name ?? award.rfq_item_id;
+    const group = splitAwardsGrouped[award.rfq_recipient_id];
+    if (group) {
+      group.itemNames.push(itemName);
+      const r = respondedRecipients.find((x) => x.id === award.rfq_recipient_id);
+      const qi = r ? getPriceForItem(r, award.rfq_item_id) : undefined;
+      if (qi && rfqItem) {
+        group.subtotal += qi.unit_price * rfqItem.quantity;
+      }
     }
   }
 
@@ -803,11 +810,16 @@ export default function RfqDetail({
               </div>
               {Object.entries(splitAwardsGrouped).map(([recipientId, group]) => (
                 <div key={recipientId} className="px-4 py-3" style={{ borderBottom: "1px solid #f0e8e0" }}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
-                      {getInitials(group.supplier?.company_name ?? "?")}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: "#f5ede6", color: "#8b3a2a" }}>
+                        {getInitials(group.supplier?.company_name ?? "?")}
+                      </div>
+                      <span className="text-sm font-semibold" style={{ color: "#111" }}>{group.supplier?.company_name}</span>
                     </div>
-                    <span className="text-sm font-semibold" style={{ color: "#111" }}>{group.supplier?.company_name}</span>
+                    <span className="text-sm font-bold tabular-nums flex-shrink-0" style={{ color: "#1a7a3a" }}>
+                      {formatPrice(group.subtotal)}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-1 pl-8">
                     {group.itemNames.map((name, i) => (
