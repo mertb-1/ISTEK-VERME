@@ -5,13 +5,9 @@ import Link from "next/link";
 import { ArrowLeft, Package } from "lucide-react";
 import OrderActions from "./OrderActions";
 import StatusBadge from "@/components/StatusBadge";
+import { formatMoney } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
-
-function formatPrice(n: number | null | undefined) {
-  if (!n) return "—";
-  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
-}
 
 function formatDate(s: string | null | undefined) {
   if (!s) return "—";
@@ -24,7 +20,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, status, confirmed_amount, expected_delivery, created_at, buyer_note, confirmation_note, rfq_id, rfq_recipient_id")
+    .select("id, status, confirmed_amount, expected_delivery, created_at, buyer_note, confirmation_note, rfq_id, rfq_recipient_id, currency")
     .eq("id", params.id)
     .eq("buyer_id", user!.id)
     .single();
@@ -44,6 +40,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const supplier = recipient?.suppliers
     ? (Array.isArray(recipient.suppliers) ? recipient.suppliers[0] : recipient.suppliers) as { company_name: string; contact_name: string; email: string }
     : null;
+
+  const fmt = (n: number | null | undefined): string => formatMoney(n, order.currency);
 
   const grandTotal = (orderItems ?? []).reduce((sum, item) => {
     const qty = item.confirmed_quantity ?? 0;
@@ -114,7 +112,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         <div className="rounded-xl px-5 py-4" style={{ background: "#fff", border: "1px solid #e6ddd4" }}>
           <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#b0a49e" }}>Onaylanan Tutar</p>
           <p className="text-2xl font-bold tabular-nums" style={{ color: "#111" }}>
-            {formatPrice(order.confirmed_amount)}
+            {fmt(order.confirmed_amount)}
           </p>
         </div>
 
@@ -207,10 +205,10 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                         {qty != null ? `${qty} ${rfqItem?.unit ?? ""}`.trim() : "—"}
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums" style={{ color: "#7a6e67" }}>
-                        {formatPrice(price)}
+                        {fmt(price)}
                       </td>
                       <td className="px-5 py-4 text-right tabular-nums font-semibold" style={{ color: "#111" }}>
-                        {formatPrice(total)}
+                        {fmt(total)}
                       </td>
                     </tr>
                   );
@@ -227,7 +225,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                 Genel Toplam
               </span>
               <span className="text-sm font-bold tabular-nums" style={{ color: "#111" }}>
-                {formatPrice(grandTotal || order.confirmed_amount)}
+                {fmt(grandTotal || order.confirmed_amount)}
               </span>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Package, Truck, CreditCard, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
+import { formatMoney, getCurrencySymbol } from "@/lib/currency";
 
 type RfqItem = {
   id: string;
@@ -70,6 +71,7 @@ export default function QuoteForm({
   buyerCompany,
   buyerLogoUrl,
   items,
+  currency = "USD",
 }: {
   token: string;
   recipientId: string;
@@ -78,6 +80,7 @@ export default function QuoteForm({
   buyerCompany: string;
   buyerLogoUrl?: string | null;
   items: RfqItem[];
+  currency?: string;
 }) {
   const router = useRouter();
   const [quoteItems, setQuoteItems] = useState<QuoteItemInput[]>(
@@ -237,7 +240,7 @@ export default function QuoteForm({
                   <tr style={{ borderBottom: "1px solid #e6ddd4", background: "#faf4ee" }}>
                     <th className="text-left px-5 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>ÜRÜN</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>MİKTAR</th>
-                    <th className="px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>BİRİM FİYAT *</th>
+                    <th className="px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>BİRİM FİYAT ({getCurrencySymbol(currency)}) *</th>
                     <th className="px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>MARKA</th>
                     <th className="px-3 py-3 text-xs font-semibold tracking-wider text-center" style={{ color: "#7a6e67" }}>STOK</th>
                     <th className="px-4 py-3 text-xs font-semibold tracking-wider" style={{ color: "#7a6e67" }}>NOT</th>
@@ -363,7 +366,7 @@ export default function QuoteForm({
                     {/* Inputs */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: "#7a6e67" }}>Birim Fiyat *</label>
+                        <label className="block text-xs font-medium mb-1" style={{ color: "#7a6e67" }}>Birim Fiyat ({getCurrencySymbol(currency)}) *</label>
                         <FieldInput
                           type="number"
                           value={quoteItems[idx].unit_price}
@@ -417,7 +420,7 @@ export default function QuoteForm({
                   Tahmini Toplam
                 </span>
                 <span className="text-sm font-bold tabular-nums" style={{ color: "#111" }}>
-                  {new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(totalAmount)}
+                  {formatMoney(totalAmount, currency)}
                 </span>
               </div>
             )}

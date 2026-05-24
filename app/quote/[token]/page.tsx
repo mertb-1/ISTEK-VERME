@@ -13,7 +13,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
     .from("rfq_recipients")
     .select(`
       id, status, magic_token, awarded_at, order_id,
-      rfqs!rfq_recipients_rfq_id_fkey(id, title, notes, deadline, buyers(company_name, company_logo_url)),
+      rfqs!rfq_recipients_rfq_id_fkey(id, title, notes, deadline, currency, buyers(company_name, company_logo_url)),
       suppliers(company_name, contact_name),
       quotes(id)
     `)
@@ -23,7 +23,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
   if (!recipient) notFound();
 
   // Süresi geçmiş mi kontrol et
-  type RfqData = { id: string; title: string; notes: string; deadline: string; buyers: { company_name: string; company_logo_url?: string | null } | { company_name: string; company_logo_url?: string | null }[] };
+  type RfqData = { id: string; title: string; notes: string; deadline: string; currency: string; buyers: { company_name: string; company_logo_url?: string | null } | { company_name: string; company_logo_url?: string | null }[] };
   const rfq = (Array.isArray(recipient.rfqs) ? recipient.rfqs[0] : recipient.rfqs) as RfqData;
   if (rfq?.deadline) {
     const deadline = new Date(rfq.deadline);
@@ -40,13 +40,14 @@ export default async function QuotePage({ params }: { params: { token: string } 
     let confirmedAmount: number | null = null;
     let expectedDelivery: string | null = null;
     let buyerNote: string | null = null;
+    let orderCurrency: string = rfq.currency ?? "USD";
     let orderItems: AwardedOrderItem[] = [];
 
     if (recipient.order_id) {
       const [{ data: order }, { data: rawItems }] = await Promise.all([
         supabase
           .from("orders")
-          .select("confirmed_amount, expected_delivery, buyer_note")
+          .select("confirmed_amount, expected_delivery, buyer_note, currency")
           .eq("id", recipient.order_id)
           .single(),
         supabase
@@ -59,6 +60,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
         confirmedAmount = order.confirmed_amount ?? null;
         expectedDelivery = order.expected_delivery ?? null;
         buyerNote = order.buyer_note ?? null;
+        orderCurrency = order.currency ?? rfq.currency ?? "USD";
       }
 
       orderItems = (rawItems ?? []).map((item) => {
@@ -85,6 +87,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
         buyerNote={buyerNote}
         supplierName={supplier?.contact_name ?? supplier?.company_name}
         orderItems={orderItems}
+        currency={orderCurrency}
       />
     );
   }
@@ -108,6 +111,7 @@ export default async function QuotePage({ params }: { params: { token: string } 
       buyerCompany={buyer?.company_name ?? ""}
       buyerLogoUrl={buyer?.company_logo_url ?? null}
       items={items ?? []}
+      currency={rfq.currency ?? "USD"}
     />
   );
 }

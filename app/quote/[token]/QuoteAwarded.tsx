@@ -1,5 +1,6 @@
 import { CheckCircle, Package } from "lucide-react";
-import { APP_NAME, DEFAULT_CURRENCY } from "@/lib/config";
+import { APP_NAME } from "@/lib/config";
+import { formatMoney } from "@/lib/currency";
 
 export type AwardedOrderItem = {
   id: string;
@@ -19,16 +20,8 @@ type Props = {
   buyerNote?: string | null;
   supplierName?: string;
   orderItems?: AwardedOrderItem[];
+  currency?: string;
 };
-
-function formatPrice(n: number | null | undefined) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: DEFAULT_CURRENCY,
-    minimumFractionDigits: 2,
-  }).format(n);
-}
 
 export default function QuoteAwarded({
   buyerCompany,
@@ -39,7 +32,9 @@ export default function QuoteAwarded({
   buyerNote,
   supplierName,
   orderItems = [],
+  currency = "USD",
 }: Props) {
+  const fmt = (n: number | null | undefined): string => formatMoney(n, currency);
   const deliveryText = expectedDelivery
     ? new Date(expectedDelivery).toLocaleDateString("tr-TR", {
         day: "numeric",
@@ -188,10 +183,10 @@ export default function QuoteAwarded({
                           {qty != null ? `${qty} ${item.unit}`.trim() : "—"}
                         </td>
                         <td className="px-4 py-4 text-right tabular-nums" style={{ color: "#7a6e67" }}>
-                          {formatPrice(price)}
+                          {fmt(price)}
                         </td>
                         <td className="px-5 py-4 text-right tabular-nums font-semibold" style={{ color: "#111" }}>
-                          {formatPrice(total)}
+                          {fmt(total)}
                         </td>
                       </tr>
                     );
@@ -207,7 +202,7 @@ export default function QuoteAwarded({
                   Genel Toplam
                 </span>
                 <span className="text-sm font-bold tabular-nums" style={{ color: "#111" }}>
-                  {formatPrice(confirmedAmount ?? orderItems.reduce((s, i) => {
+                  {fmt(confirmedAmount ?? orderItems.reduce((s, i) => {
                     const q = i.confirmedQuantity ?? 0;
                     const p = i.confirmedUnitPrice ?? 0;
                     return s + q * p;

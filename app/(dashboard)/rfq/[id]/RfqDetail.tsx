@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle, Clock, Mail, AlertTriangle, Trophy, Package, ExternalLink, Layers } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { formatMoney } from "@/lib/currency";
 
 type RfqItem = { id: string; product_name: string; brand: string; quantity: number; unit: string };
 type QuoteItem = { rfq_item_id: string; unit_price: number; total_price: number; offered_brand: string; in_stock: boolean; notes: string };
@@ -30,11 +31,6 @@ function getInitials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-function formatPrice(n: number | null | undefined) {
-  if (!n) return "—";
-  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
-}
-
 type SplitOrder = { rfq_recipient_id: string; order_id: string };
 
 export default function RfqDetail({
@@ -42,10 +38,12 @@ export default function RfqDetail({
   items,
   recipients,
 }: {
-  rfq: { id: string; title: string; status: string; deadline: string; notes: string; created_at: string; awarded_recipient_id: string | null; split_awarded: boolean };
+  rfq: { id: string; title: string; status: string; deadline: string; notes: string; created_at: string; awarded_recipient_id: string | null; split_awarded: boolean; currency: string };
   items: RfqItem[];
   recipients: Recipient[];
 }) {
+  const fmt = (n: number | null | undefined): string => formatMoney(n, rfq.currency);
+
   const respondedRecipients = recipients.filter((r) => r.quotes && r.quotes.length > 0);
   const pendingRecipients = recipients.filter((r) => !r.quotes || r.quotes.length === 0);
 
@@ -407,7 +405,7 @@ export default function RfqDetail({
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#edf8f1", border: "1px solid #c3e6cb" }}>
                 <Trophy className="w-3.5 h-3.5" style={{ color: "#1a7a3a" }} />
                 <span className="text-xs" style={{ color: "#1a7a3a" }}>
-                  En ucuz karma: <span className="font-bold">{formatPrice(cheapestMixTotal)}</span>
+                  En ucuz karma: <span className="font-bold">{fmt(cheapestMixTotal)}</span>
                 </span>
               </div>
             )}
@@ -554,7 +552,7 @@ export default function RfqDetail({
                             {qi ? (
                               <div className="space-y-1">
                                 <div className="text-base font-bold tabular-nums leading-none" style={{ color: isCheapest ? "#1a7a3a" : "#111" }}>
-                                  {formatPrice(qi.unit_price)}
+                                  {fmt(qi.unit_price)}
                                   {isCheapest && respondedRecipients.length > 1 && (
                                     <span className="ml-1 inline-flex items-center" style={{ color: "#1a7a3a" }}>
                                       <CheckCircle className="w-3 h-3" />
@@ -562,7 +560,7 @@ export default function RfqDetail({
                                   )}
                                 </div>
                                 <div className="text-xs tabular-nums" style={{ color: "#b0a49e" }}>
-                                  = {formatPrice(qi.unit_price * item.quantity)}
+                                  = {fmt(qi.unit_price * item.quantity)}
                                 </div>
                                 {qi.offered_brand && (
                                   <div
@@ -622,7 +620,7 @@ export default function RfqDetail({
                           className="text-2xl font-bold tabular-nums leading-none"
                           style={{ color: isOverallCheapest ? "#1a7a3a" : "#111" }}
                         >
-                          {formatPrice(total)}
+                          {fmt(total)}
                         </div>
                         {isOverallCheapest && !isAwarded && (
                           <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "#fef5e4", color: "#a06a00" }}>
@@ -686,7 +684,7 @@ export default function RfqDetail({
                   </div>
                   <div className="flex flex-col items-start sm:items-end gap-1.5 sm:pl-4 flex-shrink-0">
                     <span className="text-2xl font-bold tabular-nums" style={{ color: "#1a7a3a" }}>
-                      {formatPrice(cheapestMixTotal)}
+                      {fmt(cheapestMixTotal)}
                     </span>
                     <div className="flex flex-wrap gap-1">
                       {items.map((item) => {
@@ -758,7 +756,7 @@ export default function RfqDetail({
                       <CheckCircle className="w-4 h-4" />
                       {s?.company_name}
                       <span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.7)" }}>
-                        {formatPrice(r.quotes?.[0]?.total_amount)}
+                        {fmt(r.quotes?.[0]?.total_amount)}
                       </span>
                       <ExternalLink className="w-3 h-3" style={{ color: "rgba(255,255,255,0.6)" }} />
                     </Link>
@@ -781,7 +779,7 @@ export default function RfqDetail({
                       className="text-xs font-normal tabular-nums"
                       style={{ color: isOverallCheapest ? "rgba(255,255,255,0.6)" : "#7a6e67" }}
                     >
-                      {formatPrice(r.quotes?.[0]?.total_amount)}
+                      {fmt(r.quotes?.[0]?.total_amount)}
                     </span>
                   </button>
                 );
@@ -818,7 +816,7 @@ export default function RfqDetail({
                       <span className="text-sm font-semibold" style={{ color: "#111" }}>{group.supplier?.company_name}</span>
                     </div>
                     <span className="text-sm font-bold tabular-nums flex-shrink-0" style={{ color: "#1a7a3a" }}>
-                      {formatPrice(group.subtotal)}
+                      {fmt(group.subtotal)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1 pl-8">
@@ -832,7 +830,7 @@ export default function RfqDetail({
               ))}
               <div className="px-4 py-2.5 flex justify-between items-center" style={{ background: "#faf4ee" }}>
                 <span className="text-xs font-semibold" style={{ color: "#7a6e67" }}>Toplam</span>
-                <span className="text-base font-bold tabular-nums" style={{ color: "#1a7a3a" }}>{formatPrice(cheapestMixTotal)}</span>
+                <span className="text-base font-bold tabular-nums" style={{ color: "#1a7a3a" }}>{fmt(cheapestMixTotal)}</span>
               </div>
             </div>
 
@@ -921,7 +919,7 @@ export default function RfqDetail({
                   </div>
                   <div className="flex justify-between">
                     <span style={{ color: "#7a6e67" }}>Teklif Tutarı</span>
-                    <span className="font-bold" style={{ color: "#111" }}>{formatPrice(q?.total_amount)}</span>
+                    <span className="font-bold" style={{ color: "#111" }}>{fmt(q?.total_amount)}</span>
                   </div>
                   {q?.delivery_time && (
                     <div className="flex justify-between">
