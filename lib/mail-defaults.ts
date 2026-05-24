@@ -35,7 +35,7 @@ export const MAIL_DEFAULTS: Record<MailTemplateType, MailTemplate> = {
     type: "supplier_order_notification",
     subject: "{{firma_adi}} — Siparişiniz Onaylandı (#{{siparis_no}})",
     greeting: "Sayın {{tedarikci_adi}},",
-    body: "{{firma_adi}} firması, {{teklif_no}} numaralı teklif talebinize verdiğiniz teklifi sipariş olarak onaylamıştır.\n\nSipariş No: {{siparis_no}}\nSipariş Tutarı: {{siparis_tutari}}\nTahmini Teslim Tarihi: {{teslim_tarihi}}\n\n{{siparis_notu}}\n\nSipariş detaylarını incelemek için lütfen aşağıdaki bağlantıya tıklayın.",
+    body: "{{firma_adi}} firması, {{teklif_no}} numaralı teklif talebinize verdiğiniz teklifi sipariş olarak onaylamıştır.\n\nSipariş No: {{siparis_no}}\nSipariş Tutarı: {{siparis_tutari}} {{para_birimi}}\nTahmini Teslim Tarihi: {{teslim_tarihi}}\n\n{{siparis_notu}}\n\nSipariş detaylarını incelemek için lütfen aşağıdaki bağlantıya tıklayın.",
     signature:
       "Saygılarımızla,\n{{firma_adi}}\nTel: {{firma_telefon}}\nMail: {{firma_mail}}",
   },

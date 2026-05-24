@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PhotoUploader from "@/components/PhotoUploader";
+import { SUPPORTED_CURRENCIES, CURRENCY_LABELS } from "@/lib/currency";
 
 type UploadedPhoto = { url: string; name: string };
 
@@ -55,6 +56,7 @@ export default function NewRfqPage() {
   const [items, setItems] = useState<Item[]>([newItem(0)]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState<Set<string>>(new Set());
+  const [currency, setCurrency] = useState("USD");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [uploadMeta, setUploadMeta] = useState<{ sourceType: string; sourceFileUrl: string | null } | null>(null);
@@ -183,6 +185,8 @@ export default function NewRfqPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError("Oturum bulunamadı."); setSaving(false); return; }
 
+    const safeCurrency = (SUPPORTED_CURRENCIES as readonly string[]).includes(currency) ? currency : "USD";
+
     const { data: rfq, error: rfqErr } = await supabase
       .from("rfqs")
       .insert({
@@ -191,6 +195,7 @@ export default function NewRfqPage() {
         deadline: deadline || null,
         status: "open",
         buyer_id: user.id,
+        currency: safeCurrency,
         source_type: uploadMeta?.sourceType ?? "manual",
         source_file_url: uploadMeta?.sourceFileUrl ?? null,
       })
@@ -304,7 +309,7 @@ export default function NewRfqPage() {
                 onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
                   Son Cevap Tarihi
@@ -318,6 +323,23 @@ export default function NewRfqPage() {
                   onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4")}
                   onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>
+                  Para Birimi
+                </label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg text-sm focus:outline-none cursor-pointer"
+                  style={{ border: "1px solid #e6ddd4", background: "#fff", color: "#111" }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 3px #e6ddd4")}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = "none")}
+                >
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c} value={c}>{CURRENCY_LABELS[c]}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: "#7a6e67" }}>

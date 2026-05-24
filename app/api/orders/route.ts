@@ -200,6 +200,7 @@ export async function POST(req: NextRequest) {
         teklif_no: `RFQ-${rfqShort}`,
         siparis_no: `ORD-${orderShort}`,
         siparis_tutari: amountFormatted,
+        para_birimi: orderCurrency,
         teslim_tarihi: deliveryDate,
         siparis_notu: typeof buyer_note === "string" && buyer_note ? buyer_note.slice(0, 500) : "",
         teklif_linki: magicLink,

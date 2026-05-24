@@ -57,7 +57,7 @@ const VARS: Record<MailTemplateType, { subject: string[]; body: string[]; signat
     subject: ["{{firma_adi}}", "{{siparis_no}}", "{{teklif_no}}"],
     body: [
       "{{firma_adi}}", "{{tedarikci_adi}}", "{{teklif_no}}", "{{siparis_no}}",
-      "{{siparis_tutari}}", "{{teslim_tarihi}}", "{{siparis_notu}}",
+      "{{siparis_tutari}}", "{{para_birimi}}", "{{teslim_tarihi}}", "{{siparis_notu}}",
       "{{firma_telefon}}", "{{firma_mail}}",
     ],
     signature: ["{{firma_adi}}", "{{firma_telefon}}", "{{firma_mail}}"],
@@ -78,7 +78,8 @@ const PREVIEW_DATA: Record<string, string> = {
   cevap_tarihi: "19.05.2026",
   alici_adi: "Umut CADIRCI",
   siparis_no: "ORD-2026-001",
-  siparis_tutari: "12.500,00 USD",
+  siparis_tutari: "12.500,00",
+  para_birimi: "USD",
   teslim_tarihi: "05.06.2026",
   siparis_notu: "Lütfen teslimat öncesinde iletişime geçin.",
   teklif_linki: "#",
