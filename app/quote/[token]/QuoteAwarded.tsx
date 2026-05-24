@@ -59,10 +59,15 @@ export default function QuoteAwarded({
           {/* Buyer identity row */}
           <div className="flex items-center gap-3 mb-4">
             {buyerLogoUrl ? (
-              <img src={buyerLogoUrl} alt={buyerCompany} className="h-8 object-contain" style={{ filter: "brightness(0) invert(1)" }} />
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded overflow-hidden"
+                style={{ width: 36, height: 36, background: "rgba(255,255,255,0.92)", padding: 3 }}
+              >
+                <img src={buyerLogoUrl} alt={buyerCompany} className="w-full h-full object-contain" />
+              </div>
             ) : (
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                 style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
               >
                 {buyerCompany.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
