@@ -97,7 +97,7 @@ export default function RfqDetail({
       })
     : null;
 
-  // Build cheapest-mix awards array (one entry per item)
+  // Build cheapest-mix awards array (one entry per item) — canonical source of truth
   const cheapestMixAwards: Array<{ rfq_item_id: string; rfq_recipient_id: string }> = [];
   for (const item of items) {
     let cheapestR: Recipient | null = null;
@@ -113,7 +113,12 @@ export default function RfqDetail({
       cheapestMixAwards.push({ rfq_item_id: item.id, rfq_recipient_id: cheapestR.id });
     }
   }
-  // Group awards by supplier for dialog preview
+
+  // Items not covered by any responded supplier (no valid unit_price found)
+  const coveredItemIds = new Set(cheapestMixAwards.map((a) => a.rfq_item_id));
+  const uncoveredItems = items.filter((item) => !coveredItemIds.has(item.id));
+
+  // Group awards by supplier for dialog preview — derived from same cheapestMixAwards
   const splitAwardsGrouped: Record<string, { supplier: Supplier; itemNames: string[] }> = {};
   for (const award of cheapestMixAwards) {
     if (!splitAwardsGrouped[award.rfq_recipient_id]) {
@@ -846,6 +851,19 @@ export default function RfqDetail({
               />
             </div>
 
+            {uncoveredItems.length > 0 && (
+              <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "#fdf0ee", color: "#8b3a2a" }}>
+                <div className="font-semibold mb-1">Aşağıdaki ürünler için fiyat bulunamadı:</div>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {uncoveredItems.map((item) => (
+                    <li key={item.id} className="text-xs">{item.product_name}</li>
+                  ))}
+                </ul>
+                <div className="mt-1.5 text-xs" style={{ color: "#a04a3a" }}>
+                  Tüm ürünlerin en az bir tedarikçiden geçerli fiyatı olmalı.
+                </div>
+              </div>
+            )}
             {splitAwardError && (
               <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "#fdf0ee", color: "#8b3a2a" }}>
                 {splitAwardError}
@@ -864,8 +882,8 @@ export default function RfqDetail({
             <Button
               type="button"
               onClick={handleConfirmSplitAward}
-              disabled={splitAwarding}
-              style={{ background: "#1a7a3a", color: "#fff" }}
+              disabled={splitAwarding || uncoveredItems.length > 0}
+              style={{ background: "#1a7a3a", color: "#fff", opacity: uncoveredItems.length > 0 ? 0.4 : 1 }}
             >
               {splitAwarding ? "Oluşturuluyor..." : "Siparişleri Oluştur →"}
             </Button>
