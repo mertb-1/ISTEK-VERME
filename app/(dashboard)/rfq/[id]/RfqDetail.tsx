@@ -1021,6 +1021,7 @@ export default function RfqDetail({
                                       next[idx] = { ...next[idx], conf_qty: e.target.value };
                                       setAdjRows(next);
                                     }}
+                                    onWheel={(e) => (e.target as HTMLElement).blur()}
                                     className="w-20 text-right px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8]"
                                     style={{ borderColor: "#e6ddd4" }}
                                   />
@@ -1037,6 +1038,7 @@ export default function RfqDetail({
                                       next[idx] = { ...next[idx], conf_price: e.target.value };
                                       setAdjRows(next);
                                     }}
+                                    onWheel={(e) => (e.target as HTMLElement).blur()}
                                     className="w-28 text-right px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8]"
                                     style={{ borderColor: "#e6ddd4" }}
                                   />
