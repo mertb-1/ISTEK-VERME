@@ -11,6 +11,7 @@ const VALID_TYPES: MailTemplateType[] = [
   "buyer_notification",
   "approval",
   "supplier_order_notification",
+  "supplier_order_cancelled",
 ];
 
 async function requireAdmin() {

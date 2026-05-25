@@ -30,9 +30,10 @@ const TAB_LABELS: Record<MailTemplateType, string> = {
   buyer_notification: "Alıcıya Bildirim",
   approval: "Kayıt Onayı",
   supplier_order_notification: "Sipariş Bildirimi",
+  supplier_order_cancelled: "Sipariş İptali",
 };
 
-const TAB_ORDER: MailTemplateType[] = ["supplier_rfq", "buyer_notification", "approval", "supplier_order_notification"];
+const TAB_ORDER: MailTemplateType[] = ["supplier_rfq", "buyer_notification", "approval", "supplier_order_notification", "supplier_order_cancelled"];
 
 const VARS: Record<MailTemplateType, { subject: string[]; body: string[]; signature: string[] }> = {
   supplier_rfq: {
@@ -62,6 +63,15 @@ const VARS: Record<MailTemplateType, { subject: string[]; body: string[]; signat
     ],
     signature: ["{{firma_adi}}", "{{firma_telefon}}", "{{firma_mail}}"],
   },
+  supplier_order_cancelled: {
+    subject: ["{{alici_firma}}", "{{siparis_kodu}}", "{{rfq_basligi}}"],
+    body: [
+      "{{alici_firma}}", "{{tedarikci_adi}}", "{{rfq_basligi}}", "{{siparis_kodu}}",
+      "{{siparis_tutari}}", "{{para_birimi}}", "{{iptal_nedeni}}",
+      "{{firma_telefon}}", "{{firma_mail}}",
+    ],
+    signature: ["{{alici_firma}}", "{{firma_telefon}}", "{{firma_mail}}"],
+  },
 };
 
 const PREVIEW_DATA: Record<string, string> = {
@@ -83,6 +93,10 @@ const PREVIEW_DATA: Record<string, string> = {
   teslim_tarihi: "05.06.2026",
   siparis_notu: "Lütfen teslimat öncesinde iletişime geçin.",
   teklif_linki: "#",
+  alici_firma: "Orange Shipping Co.",
+  rfq_basligi: "M/V Lider Perihan — Mayıs 2026 İkmali",
+  siparis_kodu: "SPR-A1B2C3D4",
+  iptal_nedeni: "İptal Nedeni: Temin edilemedi, alternatif tedarikçi ile ilerlenecek.",
 };
 
 function replacePreview(text: string): string {
@@ -114,6 +128,8 @@ function buildPreviewHtml(tmpl: Template, type: MailTemplateType): string {
       ? "Giriş Yap →"
       : type === "supplier_order_notification"
       ? "Siparişi Görüntüle →"
+      : type === "supplier_order_cancelled"
+      ? "Platforma Git →"
       : "Teklif Ver →";
 
   return `<div style="max-width:560px;margin:0 auto;font-family:Arial,sans-serif;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">

@@ -1,4 +1,4 @@
-export type MailTemplateType = "supplier_rfq" | "buyer_notification" | "approval" | "supplier_order_notification";
+export type MailTemplateType = "supplier_rfq" | "buyer_notification" | "approval" | "supplier_order_notification" | "supplier_order_cancelled";
 
 export type MailTemplate = {
   type: MailTemplateType;
@@ -38,5 +38,13 @@ export const MAIL_DEFAULTS: Record<MailTemplateType, MailTemplate> = {
     body: "{{firma_adi}} firması, {{teklif_no}} numaralı teklif talebinize verdiğiniz teklifi sipariş olarak onaylamıştır.\n\nSipariş No: {{siparis_no}}\nSipariş Tutarı: {{siparis_tutari}} {{para_birimi}}\nTahmini Teslim Tarihi: {{teslim_tarihi}}\n\n{{siparis_notu}}\n\nSipariş detaylarını incelemek için lütfen aşağıdaki bağlantıya tıklayın.",
     signature:
       "Saygılarımızla,\n{{firma_adi}}\nTel: {{firma_telefon}}\nMail: {{firma_mail}}",
+  },
+  supplier_order_cancelled: {
+    type: "supplier_order_cancelled",
+    subject: "{{alici_firma}} — Siparişiniz İptal Edildi (#{{siparis_kodu}})",
+    greeting: "Sayın {{tedarikci_adi}},",
+    body: "{{alici_firma}} firması, {{rfq_basligi}} başlıklı teklif talebine ait siparişi iptal etmiştir.\n\nSipariş Kodu: {{siparis_kodu}}\nSipariş Tutarı: {{siparis_tutari}} {{para_birimi}}\n\n{{iptal_nedeni}}\n\nHerhangi bir sorunuz için bizimle iletişime geçebilirsiniz.",
+    signature:
+      "Saygılarımızla,\n{{alici_firma}}\nTel: {{firma_telefon}}\nMail: {{firma_mail}}",
   },
 };

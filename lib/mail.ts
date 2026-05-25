@@ -103,6 +103,7 @@ export function buildMailHtml({
   if (type === "buyer_notification") buttonLabel = "Teklifleri Karşılaştır &rarr;";
   if (type === "approval") buttonLabel = "Giriş Yap &rarr;";
   if (type === "supplier_order_notification") buttonLabel = "Siparişi Görüntüle &rarr;";
+  if (type === "supplier_order_cancelled") buttonLabel = "Platforma Git &rarr;";
 
   return `<!DOCTYPE html>
 <html lang="tr">

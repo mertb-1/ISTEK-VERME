@@ -25,11 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const { rfq_id, rfq_recipient_id, quote_id, buyer_note, confirmation_note, expected_delivery } = body;
+  const { rfq_id, rfq_recipient_id, quote_id, buyer_note, confirmation_note, expected_delivery, adjustments: rawAdjustments } = body;
 
   if (!isUuid(rfq_id) || !isUuid(rfq_recipient_id) || !isUuid(quote_id)) {
     return NextResponse.json({ error: "Geçersiz parametreler." }, { status: 400 });
   }
+
+  type Adjustment = { rfq_item_id: string; confirmed_quantity: number; confirmed_unit_price?: number };
+  const adjustments: Adjustment[] | null = Array.isArray(rawAdjustments) ? (rawAdjustments as Adjustment[]) : null;
 
   const admin = createAdminClient();
 
@@ -79,6 +82,76 @@ export async function POST(req: NextRequest) {
     ? (rfq.currency as Currency)
     : "USD";
 
+  // order_items build: either from adjustments or from quote_items verbatim
+  type QuoteItem = { id: string; rfq_item_id: string; unit_price: number; total_price: number; offered_brand: string; in_stock: boolean };
+  const quoteItems = (Array.isArray(quote.quote_items) ? quote.quote_items : []) as QuoteItem[];
+  const quoteItemMap = new Map(quoteItems.map((qi) => [qi.rfq_item_id, qi]));
+
+  let confirmedAmount: number | null;
+  let orderItemsPayload: Array<{
+    rfq_item_id: string;
+    quote_item_id: string | null;
+    confirmed_unit_price: number;
+    confirmed_quantity: number;
+    confirmed_brand: string | null;
+  }>;
+
+  if (adjustments) {
+    // Validate adjustments
+    for (const adj of adjustments) {
+      if (!isUuid(adj.rfq_item_id)) {
+        return NextResponse.json({ error: "Geçersiz rfq_item_id." }, { status: 400 });
+      }
+      if (!quoteItemMap.has(adj.rfq_item_id)) {
+        return NextResponse.json({ error: "Kalem bu teklife ait değil." }, { status: 400 });
+      }
+      if (typeof adj.confirmed_quantity !== "number" || adj.confirmed_quantity <= 0) {
+        return NextResponse.json({ error: "Miktar sıfırdan büyük olmalıdır." }, { status: 400 });
+      }
+      if (adj.confirmed_unit_price !== undefined && (typeof adj.confirmed_unit_price !== "number" || adj.confirmed_unit_price <= 0)) {
+        return NextResponse.json({ error: "Birim fiyat sıfırdan büyük olmalıdır." }, { status: 400 });
+      }
+    }
+    if (adjustments.length === 0) {
+      return NextResponse.json({ error: "En az bir kalem seçilmelidir." }, { status: 400 });
+    }
+
+    orderItemsPayload = adjustments.map((adj) => {
+      const qi = quoteItemMap.get(adj.rfq_item_id)!;
+      const unitPrice = adj.confirmed_unit_price ?? qi.unit_price;
+      return {
+        rfq_item_id: adj.rfq_item_id,
+        quote_item_id: qi.id,
+        confirmed_unit_price: unitPrice,
+        confirmed_quantity: adj.confirmed_quantity,
+        confirmed_brand: qi.offered_brand || null,
+      };
+    });
+
+    confirmedAmount = orderItemsPayload.reduce(
+      (sum, row) => sum + row.confirmed_unit_price * row.confirmed_quantity,
+      0
+    );
+  } else {
+    // Original behavior: copy all quote_items verbatim
+    const rfqItemIds = quoteItems.map((qi) => qi.rfq_item_id);
+    const { data: rfqItemsData } = await admin
+      .from("rfq_items")
+      .select("id, quantity")
+      .in("id", rfqItemIds);
+    const qtyMap = new Map((rfqItemsData ?? []).map((ri: { id: string; quantity: number }) => [ri.id, ri.quantity]));
+
+    orderItemsPayload = quoteItems.map((qi) => ({
+      rfq_item_id: qi.rfq_item_id,
+      quote_item_id: qi.id,
+      confirmed_unit_price: qi.unit_price,
+      confirmed_quantity: qtyMap.get(qi.rfq_item_id) ?? 0,
+      confirmed_brand: qi.offered_brand || null,
+    }));
+
+    confirmedAmount = quote.total_amount ?? null;
+  }
+
   // orders INSERT (server client — RLS buyer_id kontrolü yapar)
   const { data: order, error: orderErr } = await supabase
     .from("orders")
@@ -91,7 +164,7 @@ export async function POST(req: NextRequest) {
       confirmed_at: new Date().toISOString(),
       buyer_note: typeof buyer_note === "string" ? buyer_note.slice(0, 2000) : null,
       confirmation_note: typeof confirmation_note === "string" ? confirmation_note.slice(0, 2000) : null,
-      confirmed_amount: quote.total_amount ?? null,
+      confirmed_amount: confirmedAmount,
       expected_delivery: typeof expected_delivery === "string" && expected_delivery ? expected_delivery : null,
       currency: orderCurrency,
     })
@@ -103,36 +176,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sipariş oluşturulamadı." }, { status: 500 });
   }
 
-  // order_items INSERT — quote_items'tan kopyala
-  type QuoteItem = { id: string; rfq_item_id: string; unit_price: number; total_price: number; offered_brand: string; in_stock: boolean };
-  const quoteItems = (Array.isArray(quote.quote_items) ? quote.quote_items : []) as QuoteItem[];
-
-  if (quoteItems.length > 0) {
-    // rfq_items'tan quantity bilgisini çek
-    const rfqItemIds = quoteItems.map((qi) => qi.rfq_item_id);
-    const { data: rfqItems } = await admin
-      .from("rfq_items")
-      .select("id, quantity")
-      .in("id", rfqItemIds);
-
-    const qtyMap = new Map((rfqItems ?? []).map((ri: { id: string; quantity: number }) => [ri.id, ri.quantity]));
-
-    const orderItemsPayload = quoteItems.map((qi) => ({
-      order_id: order.id,
-      rfq_item_id: qi.rfq_item_id,
-      quote_item_id: qi.id,
-      confirmed_unit_price: qi.unit_price,
-      confirmed_quantity: qtyMap.get(qi.rfq_item_id) ?? null,
-      confirmed_brand: qi.offered_brand || null,
-    }));
-
+  if (orderItemsPayload.length > 0) {
     const { error: itemsErr } = await supabase
       .from("order_items")
-      .insert(orderItemsPayload);
+      .insert(orderItemsPayload.map((row) => ({ ...row, order_id: order.id })));
 
     if (itemsErr) {
       console.error("order_items insert error:", itemsErr.code, itemsErr.message);
-      // Sipariş oluşturuldu ama kalemler yazılamadı — siparişi temizle
       await supabase.from("orders").delete().eq("id", order.id);
       return NextResponse.json({ error: "Sipariş kalemleri kaydedilemedi." }, { status: 500 });
     }
@@ -187,8 +237,8 @@ export async function POST(req: NextRequest) {
         ? new Date(expected_delivery).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
         : "Belirtilmemiş";
 
-      const amountFormatted = quote.total_amount != null
-        ? Number(quote.total_amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      const amountFormatted = confirmedAmount != null
+        ? Number(confirmedAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : "—";
 
       const orderShort = order.id.slice(0, 8).toUpperCase();

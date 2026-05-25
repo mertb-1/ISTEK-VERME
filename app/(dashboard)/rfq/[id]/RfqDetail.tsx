@@ -70,6 +70,18 @@ export default function RfqDetail({
   const [awarding, setAwarding] = useState(false);
   const [awardError, setAwardError] = useState("");
 
+  type AdjRow = {
+    rfq_item_id: string;
+    product_name: string;
+    unit: string;
+    original_qty: number;
+    quote_unit_price: number;
+    conf_qty: string;
+    conf_price: string;
+    excluded: boolean;
+  };
+  const [adjRows, setAdjRows] = useState<AdjRow[]>([]);
+
   const getPriceForItem = (recipient: Recipient, itemId: string): QuoteItem | undefined => {
     const quote = recipient.quotes?.[0];
     return quote?.quote_items?.find((qi) => qi.rfq_item_id === itemId);
@@ -174,6 +186,22 @@ export default function RfqDetail({
     setPoNote("");
     setExpectedDelivery("");
     setAwardError("");
+    const quote = r.quotes?.[0];
+    setAdjRows(
+      (quote?.quote_items ?? []).map((qi) => {
+        const rfqItem = items.find((i) => i.id === qi.rfq_item_id);
+        return {
+          rfq_item_id: qi.rfq_item_id,
+          product_name: rfqItem?.product_name ?? qi.rfq_item_id,
+          unit: rfqItem?.unit ?? "",
+          original_qty: rfqItem?.quantity ?? 0,
+          quote_unit_price: qi.unit_price,
+          conf_qty: String(rfqItem?.quantity ?? 0),
+          conf_price: String(qi.unit_price),
+          excluded: false,
+        };
+      })
+    );
     setDialogOpen(true);
   }
 
@@ -185,6 +213,13 @@ export default function RfqDetail({
     setAwarding(true);
     setAwardError("");
 
+    const activeRows = adjRows.filter((r) => !r.excluded);
+    const adjustments = activeRows.map((r) => ({
+      rfq_item_id: r.rfq_item_id,
+      confirmed_quantity: Number(r.conf_qty),
+      confirmed_unit_price: Number(r.conf_price),
+    }));
+
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -195,6 +230,7 @@ export default function RfqDetail({
           quote_id: quote.id,
           confirmation_note: poNote || undefined,
           expected_delivery: expectedDelivery || undefined,
+          adjustments,
         }),
       });
 
@@ -902,24 +938,27 @@ export default function RfqDetail({
 
       {/* Award confirmation dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!awarding) setDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[660px] flex flex-col max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0" style={{ borderBottom: "1px solid #e6ddd4" }}>
             <DialogTitle>Sipariş Oluştur</DialogTitle>
           </DialogHeader>
 
           {dialogRecipient && (() => {
             const s = getSupplier(dialogRecipient);
             const q = dialogRecipient.quotes?.[0];
+            const activeRows = adjRows.filter((r) => !r.excluded);
+            const adjTotal = activeRows.reduce((sum, r) => {
+              const qty = parseFloat(r.conf_qty) || 0;
+              const price = parseFloat(r.conf_price) || 0;
+              return sum + qty * price;
+            }, 0);
             return (
-              <div className="space-y-4 py-2">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                {/* Supplier summary */}
                 <div className="rounded-lg px-4 py-3 space-y-2 text-sm" style={{ background: "#f5f0eb" }}>
                   <div className="flex justify-between">
                     <span style={{ color: "#7a6e67" }}>Tedarikçi</span>
                     <span className="font-semibold" style={{ color: "#111" }}>{s?.company_name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: "#7a6e67" }}>Teklif Tutarı</span>
-                    <span className="font-bold" style={{ color: "#111" }}>{fmt(q?.total_amount)}</span>
                   </div>
                   {q?.delivery_time && (
                     <div className="flex justify-between">
@@ -934,6 +973,108 @@ export default function RfqDetail({
                     </div>
                   )}
                 </div>
+
+                {/* Editable order items */}
+                {adjRows.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#7a6e67" }}>
+                      Sipariş Kalemleri
+                    </div>
+                    <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #e6ddd4" }}>
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr style={{ background: "#faf4ee", borderBottom: "1px solid #e6ddd4" }}>
+                            <th className="text-left px-3 py-2 text-xs font-semibold" style={{ color: "#7a6e67" }}>Ürün</th>
+                            <th className="text-right px-3 py-2 text-xs font-semibold" style={{ color: "#7a6e67" }}>Miktar</th>
+                            <th className="text-right px-3 py-2 text-xs font-semibold" style={{ color: "#7a6e67" }}>Birim Fiyat</th>
+                            <th className="text-right px-3 py-2 text-xs font-semibold" style={{ color: "#7a6e67" }}>Toplam</th>
+                            <th className="px-3 py-2" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adjRows.map((row, idx) => {
+                            const rowTotal = (parseFloat(row.conf_qty) || 0) * (parseFloat(row.conf_price) || 0);
+                            return (
+                              <tr
+                                key={row.rfq_item_id}
+                                style={{
+                                  borderBottom: "1px solid #f0e8e0",
+                                  background: row.excluded ? "#faf4ee" : "#fff",
+                                  opacity: row.excluded ? 0.45 : 1,
+                                }}
+                              >
+                                <td className="px-3 py-2">
+                                  <div className="font-medium leading-snug" style={{ color: "#111" }}>{row.product_name}</div>
+                                  <div className="text-xs mt-0.5" style={{ color: "#b0a49e" }}>
+                                    Talep: {row.original_qty} {row.unit}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    disabled={row.excluded}
+                                    value={row.conf_qty}
+                                    onChange={(e) => {
+                                      const next = [...adjRows];
+                                      next[idx] = { ...next[idx], conf_qty: e.target.value };
+                                      setAdjRows(next);
+                                    }}
+                                    className="w-20 text-right px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8]"
+                                    style={{ borderColor: "#e6ddd4" }}
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    disabled={row.excluded}
+                                    value={row.conf_price}
+                                    onChange={(e) => {
+                                      const next = [...adjRows];
+                                      next[idx] = { ...next[idx], conf_price: e.target.value };
+                                      setAdjRows(next);
+                                    }}
+                                    className="w-28 text-right px-2 py-1 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#d4c5b8]"
+                                    style={{ borderColor: "#e6ddd4" }}
+                                  />
+                                </td>
+                                <td className="px-3 py-2 text-right tabular-nums font-medium" style={{ color: "#111" }}>
+                                  {row.excluded ? "—" : fmt(rowTotal)}
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <button
+                                    type="button"
+                                    title={row.excluded ? "Ekle" : "Çıkar"}
+                                    onClick={() => {
+                                      const next = [...adjRows];
+                                      next[idx] = { ...next[idx], excluded: !next[idx].excluded };
+                                      setAdjRows(next);
+                                    }}
+                                    className="text-xs px-2 py-0.5 rounded transition-colors"
+                                    style={row.excluded
+                                      ? { background: "#edf8f1", color: "#1a7a3a", border: "1px solid #c3e6cb" }
+                                      : { background: "#fdf0ee", color: "#8b3a2a", border: "1px solid #f5d0c8" }}
+                                  >
+                                    {row.excluded ? "+ Ekle" : "× Çıkar"}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <div className="px-4 py-2.5 flex justify-between items-center" style={{ background: "#faf4ee", borderTop: "1px solid #e6ddd4" }}>
+                        <span className="text-xs font-semibold" style={{ color: "#7a6e67" }}>
+                          Sipariş Toplamı ({activeRows.length}/{adjRows.length} kalem)
+                        </span>
+                        <span className="text-base font-bold tabular-nums" style={{ color: "#111" }}>{fmt(adjTotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium" style={{ color: "#111" }}>
@@ -967,11 +1108,12 @@ export default function RfqDetail({
                     {awardError}
                   </div>
                 )}
+
               </div>
             );
           })()}
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 flex-shrink-0" style={{ borderTop: "1px solid #e6ddd4" }}>
             <Button
               type="button"
               variant="outline"
@@ -983,7 +1125,7 @@ export default function RfqDetail({
             <Button
               type="button"
               onClick={handleConfirmAward}
-              disabled={awarding}
+              disabled={awarding || adjRows.filter((r) => !r.excluded).length === 0 || adjRows.filter((r) => !r.excluded).some((r) => !(parseFloat(r.conf_qty) > 0) || !(parseFloat(r.conf_price) > 0))}
               style={{ background: "#111", color: "#fff" }}
             >
               {awarding ? "Oluşturuluyor..." : "Sipariş Oluştur →"}
