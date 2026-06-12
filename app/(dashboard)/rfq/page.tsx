@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import RfqList, { RfqRow } from "./RfqList";
 import PageHeader from "@/components/PageHeader";
-import { FileSpreadsheet, Plus } from "lucide-react";
+import { FileSpreadsheet, Plus, FileCheck2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,15 @@ export default async function RfqListPage() {
         accentWord="kütüğü."
         description="Filonuza giden tüm teklif talepleri ve durumları."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/rfq/import-answered"
+              className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors hover:bg-[#fef5e4]"
+              style={{ background: "#fff", color: "#111", border: "1px solid #e6ddd4" }}
+            >
+              <FileCheck2 className="w-4 h-4" style={{ color: "#8b3a2a" }} />
+              Cevaplanmış Teklif Yükle
+            </Link>
             <Link
               href="/rfq/new/upload"
               className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors hover:bg-[#fef5e4]"
