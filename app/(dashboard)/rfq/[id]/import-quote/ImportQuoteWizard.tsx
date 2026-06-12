@@ -73,6 +73,7 @@ const FIELD_LABELS: Record<QuoteParsedField | "ignore", string> = {
   impa_code: "IMPA Kodu",
   offered_brand: "Teklif Edilen Marka",
   quantity: "Miktar",
+  unit: "Birim",
   unit_price: "Birim Fiyat",
   total_price: "Toplam Fiyat",
   notes: "Not",
@@ -80,7 +81,7 @@ const FIELD_LABELS: Record<QuoteParsedField | "ignore", string> = {
 };
 
 const ASSIGNABLE_FIELDS: (QuoteParsedField | "ignore")[] = [
-  "product_name", "impa_code", "offered_brand", "quantity",
+  "product_name", "impa_code", "offered_brand", "quantity", "unit",
   "unit_price", "total_price", "notes", "ignore",
 ];
 

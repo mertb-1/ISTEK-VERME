@@ -7,6 +7,7 @@ export type QuoteParsedField =
   | "impa_code"
   | "offered_brand"
   | "quantity"
+  | "unit"
   | "unit_price"
   | "total_price"
   | "notes";
@@ -23,6 +24,7 @@ export interface QuoteParsedRow {
   product_name: string;
   impa_code: string;
   offered_brand: string;
+  unit: string;
   notes: string;
   quantity: number | null;
   unit_price: number | null;
@@ -33,12 +35,15 @@ export type QuoteFieldMap = Record<number, QuoteParsedField | "ignore" | null>;
 
 // total_price, unit_price'tan ÖNCE denenir: "toplam fiyat" / "total amount" gibi
 // başlıklar genel "fiyat" / "price" fallback'ine düşmeden toplam olarak yakalanır.
+// "unit", fiyat alanlarından SONRA denenir: "birim" anahtar kelimesi
+// "birim fiyat" başlığını yanlışlıkla yakalamasın
 const QUOTE_FIELD_ORDER: QuoteParsedField[] = [
   "impa_code",
   "quantity",
   "offered_brand",
   "total_price",
   "unit_price",
+  "unit",
   "notes",
   "product_name",
 ];
@@ -52,6 +57,7 @@ export const QUOTE_FIELD_KEYWORDS: Record<QuoteParsedField, string[]> = {
   impa_code: ["impa", "impa/issa", "impa code", "issa", "impa no", "issa code", "issa no"],
   offered_brand: ["teklif marka", "offered brand", "marka", "brand", "make", "manufacturer", "uretici"],
   quantity: ["miktar", "qty", "qtty", "q.ty", "quantity", "adet", "talep"],
+  unit: ["birim", "unit", "uom", "olcu", "u/m", "olcu birimi"],
   total_price: [
     "toplam tutar", "total amount", "total price", "line total",
     "toplam", "total", "tutar", "amount",
@@ -158,7 +164,7 @@ export function applyQuoteFieldMap(
 
     const row: QuoteParsedRow = {
       source_row: i + 1,
-      product_name: "", impa_code: "", offered_brand: "", notes: "",
+      product_name: "", impa_code: "", offered_brand: "", unit: "", notes: "",
       quantity: null, unit_price: null, total_price: null,
     };
 
@@ -169,7 +175,7 @@ export function applyQuoteFieldMap(
       if (NUMERIC_FIELDS.has(field)) {
         row[field as "quantity" | "unit_price" | "total_price"] = parseLocaleNumber(val);
       } else {
-        row[field as "product_name" | "impa_code" | "offered_brand" | "notes"] = val;
+        row[field as "product_name" | "impa_code" | "offered_brand" | "unit" | "notes"] = val;
       }
     }
 
