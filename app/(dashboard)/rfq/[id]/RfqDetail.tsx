@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, Mail, AlertTriangle, Trophy, Package, ExternalLink, Layers } from "lucide-react";
+import { CheckCircle, Clock, Mail, AlertTriangle, Trophy, Package, ExternalLink, Layers, FileSpreadsheet } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/currency";
@@ -311,7 +311,43 @@ export default function RfqDetail({
               <p className="text-sm mt-3 px-3 py-2 rounded-lg inline-block" style={{ background: "#f5f0eb", color: "#7a6e67" }}>{rfq.notes}</p>
             )}
           </div>
+
+          {/* Teklif içe aktarma — sadece açık ve henüz award edilmemiş RFQ'larda */}
+          {isOpen && !rfqClosed && (
+            <div className="hidden sm:flex flex-col items-end gap-1.5 flex-shrink-0 pt-1">
+              <Link
+                href={`/rfq/${rfq.id}/import-quote`}
+                className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                style={{ background: "#fff", color: "#111", border: "1px solid #e6ddd4" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#faf4ee")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+              >
+                <FileSpreadsheet className="w-4 h-4" style={{ color: "#8b3a2a" }} />
+                Teklif İçe Aktar
+              </Link>
+              <span className="text-xs" style={{ color: "#b0a49e" }}>
+                Excel ile gelen teklifleri sisteme aktarın
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Mobil: buton başlığın altında tam genişlik */}
+        {isOpen && !rfqClosed && (
+          <div className="sm:hidden mt-4">
+            <Link
+              href={`/rfq/${rfq.id}/import-quote`}
+              className="inline-flex items-center justify-center gap-2 w-full text-sm font-semibold px-4 py-2.5 rounded-lg"
+              style={{ background: "#fff", color: "#111", border: "1px solid #e6ddd4" }}
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: "#8b3a2a" }} />
+              Teklif İçe Aktar
+            </Link>
+            <p className="text-xs text-center mt-1.5" style={{ color: "#b0a49e" }}>
+              Excel ile gelen teklifleri sisteme aktarın
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Award success banner */}
