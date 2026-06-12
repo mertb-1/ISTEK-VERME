@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { SUPPORTED_CURRENCIES, type Currency } from "@/lib/currency";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 import { isValidImpa } from "@/lib/rfq-parse/quote-unify";
 
 const MAX_SUPPLIER_FILES = 10;
@@ -54,11 +55,13 @@ type NormalizedSupplierQuote = {
 };
 
 /**
- * Cevaplanmış tekliflerden yeni RFQ + karşılaştırma oluşturma — Phase 1 iskeleti.
+ * Cevaplanmış tekliflerden yeni RFQ + karşılaştırma oluşturur.
  *
- * Bu fazda yalnızca doğrulama + normalize edilmiş payload önizlemesi döner;
- * rfqs/rfq_items/rfq_recipients/quotes/quote_items insert'i sonraki fazda.
- * Bu akış HİÇBİR koşulda tedarikçilere mail göndermez.
+ * Sıra: rfqs → rfq_items → rfq_recipients → quotes → quote_items;
+ * herhangi bir adım başarısız olursa ters sırada temizlenir.
+ * Bu akış HİÇBİR koşulda tedarikçilere mail göndermez —
+ * recipient'lar status='responded' + sent_at=null ile doğar,
+ * /api/rfq/send'in status='sent' filtresi onları hiç görmez.
  */
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -258,30 +261,161 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Tedarikçi bulunamadı." }, { status: 404 });
   }
 
-  // ── Özet: tedarikçi başına sunucu hesaplı toplam ──────────────────────────
+  // ══ Insert zinciri (admin client — quotes/quote_items RLS gereği) ═════════
+  const admin = createAdminClient();
   const itemQty = new Map(items.map((it) => [it.temp_id, it.quantity]));
-  const supplierSummaries = supplierQuotes.map((sq) => ({
-    supplier_id: sq.supplier_id,
-    item_count: sq.items.length,
-    computed_total:
-      Math.round(
-        sq.items.reduce((sum, qi) => sum + qi.unit_price * (itemQty.get(qi.item_temp_id) ?? 1), 0) * 100
-      ) / 100,
-  }));
+  const now = new Date().toISOString();
 
-  // Phase 1: yalnızca doğrulama — Phase 2 bu normalize payload'ı
-  // rfqs → rfq_items → rfq_recipients → quotes → quote_items sırasıyla yazacak
-  // (recipient'lar status='responded', sent_at=null; mail gönderilmez)
-  return NextResponse.json({
-    ok: true,
-    can_create: true,
-    summary: {
+  // 1) rfqs
+  const { data: rfq, error: rfqErr } = await admin
+    .from("rfqs")
+    .insert({
+      buyer_id: user.id,
       title,
-      currency: currency as Currency,
-      item_count: items.length,
-      supplier_count: supplierQuotes.length,
-      suppliers: supplierSummaries,
-    },
-    normalized: { title, currency, notes, items, supplierQuotes },
+      notes,
+      status: "open",
+      deadline: null,
+      currency,
+      source_type: "imported_quotes",
+    })
+    .select("id")
+    .single();
+
+  if (rfqErr || !rfq) {
+    console.error("import-answered rfq insert error:", rfqErr?.code);
+    return NextResponse.json({ error: "Karşılaştırma oluşturulamadı. Lütfen tekrar deneyin." }, { status: 500 });
+  }
+
+  // Ters sıralı temizlik: quote_items → quotes → rfq_recipients → rfq_items → rfqs.
+  // Temizlik hataları yalnızca loglanır (orders route'undaki rollback deseni).
+  const rollback = async (quoteIds: string[]) => {
+    try {
+      if (quoteIds.length > 0) {
+        await admin.from("quote_items").delete().in("quote_id", quoteIds);
+        await admin.from("quotes").delete().in("id", quoteIds);
+      }
+      await admin.from("rfq_recipients").delete().eq("rfq_id", rfq.id);
+      await admin.from("rfq_items").delete().eq("rfq_id", rfq.id);
+      await admin.from("rfqs").delete().eq("id", rfq.id);
+    } catch (cleanupErr) {
+      console.error("import-answered rollback error:", cleanupErr);
+    }
+  };
+
+  // 2) rfq_items — order_no sunucuda sıralı atanır; temp_id eşlemesi order_no üzerinden
+  const { data: insertedItems, error: itemsErr } = await admin
+    .from("rfq_items")
+    .insert(
+      items.map((it, idx) => ({
+        rfq_id: rfq.id,
+        order_no: idx + 1,
+        product_name: it.product_name,
+        quantity: it.quantity,
+        unit: it.unit,
+        brand: it.brand,
+        impa_code: it.impa_code,
+        description: it.description,
+      }))
+    )
+    .select("id, order_no");
+
+  if (itemsErr || !insertedItems || insertedItems.length !== items.length) {
+    console.error("import-answered rfq_items insert error:", itemsErr?.code);
+    await rollback([]);
+    return NextResponse.json({ error: "Ürünler kaydedilemedi. Lütfen tekrar deneyin." }, { status: 500 });
+  }
+
+  const itemIdByTemp = new Map<string, string>();
+  for (const row of insertedItems) {
+    const source = items[row.order_no - 1];
+    if (source) itemIdByTemp.set(source.temp_id, row.id);
+  }
+
+  // 3) rfq_recipients — responded olarak doğar; sent_at explicit null
+  //    (kolon default'u now() — mail gönderilmiş izlenimi bırakmamalı)
+  const { data: insertedRecipients, error: recipErr } = await admin
+    .from("rfq_recipients")
+    .insert(
+      supplierQuotes.map((sq) => ({
+        rfq_id: rfq.id,
+        supplier_id: sq.supplier_id,
+        status: "responded",
+        sent_at: null,
+        responded_at: now,
+      }))
+    )
+    .select("id, supplier_id");
+
+  if (recipErr || !insertedRecipients || insertedRecipients.length !== supplierQuotes.length) {
+    console.error("import-answered rfq_recipients insert error:", recipErr?.code);
+    await rollback([]);
+    return NextResponse.json({ error: "Tedarikçiler kaydedilemedi. Lütfen tekrar deneyin." }, { status: 500 });
+  }
+
+  const recipientBySupplier = new Map(insertedRecipients.map((r) => [r.supplier_id, r.id]));
+
+  // 4) quotes — total_amount sunucuda hesaplanır, client'a güvenilmez
+  const { data: insertedQuotes, error: quotesErr } = await admin
+    .from("quotes")
+    .insert(
+      supplierQuotes.map((sq) => ({
+        rfq_recipient_id: recipientBySupplier.get(sq.supplier_id),
+        total_amount:
+          Math.round(
+            sq.items.reduce((sum, qi) => sum + qi.unit_price * (itemQty.get(qi.item_temp_id) ?? 1), 0) * 100
+          ) / 100,
+        currency,
+        delivery_time: sq.delivery_time,
+        payment_terms: sq.payment_terms,
+        supplier_notes: sq.supplier_notes,
+        source: "imported",
+        imported_at: now,
+        source_file_url: sq.source_file_url,
+        import_raw: sq.import_raw,
+      }))
+    )
+    .select("id, rfq_recipient_id");
+
+  if (quotesErr || !insertedQuotes || insertedQuotes.length !== supplierQuotes.length) {
+    console.error("import-answered quotes insert error:", quotesErr?.code);
+    await rollback([]);
+    return NextResponse.json({ error: "Teklifler kaydedilemedi. Lütfen tekrar deneyin." }, { status: 500 });
+  }
+
+  const quoteIds = insertedQuotes.map((q) => q.id);
+  const quoteByRecipient = new Map(insertedQuotes.map((q) => [q.rfq_recipient_id, q.id]));
+
+  // 5) quote_items — total_price sunucuda: unit_price × rfq_item miktarı
+  const quoteItemRows: Record<string, unknown>[] = [];
+  for (const sq of supplierQuotes) {
+    const recipientId = recipientBySupplier.get(sq.supplier_id);
+    const quoteId = recipientId ? quoteByRecipient.get(recipientId) : undefined;
+    for (const qi of sq.items) {
+      quoteItemRows.push({
+        quote_id: quoteId,
+        rfq_item_id: itemIdByTemp.get(qi.item_temp_id),
+        unit_price: qi.unit_price,
+        total_price: Math.round(qi.unit_price * (itemQty.get(qi.item_temp_id) ?? 1) * 100) / 100,
+        offered_brand: qi.offered_brand,
+        notes: qi.notes,
+        in_stock: true,
+      });
+    }
+  }
+
+  const { error: quoteItemsErr } = await admin.from("quote_items").insert(quoteItemRows);
+
+  if (quoteItemsErr) {
+    console.error("import-answered quote_items insert error:", quoteItemsErr.code);
+    await rollback(quoteIds);
+    return NextResponse.json({ error: "Teklif kalemleri kaydedilemedi. Lütfen tekrar deneyin." }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    rfq_id: rfq.id,
+    item_count: items.length,
+    supplier_count: supplierQuotes.length,
+    quote_count: insertedQuotes.length,
   });
 }
